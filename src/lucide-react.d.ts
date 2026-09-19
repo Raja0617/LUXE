@@ -1,0 +1,66 @@
+declare module 'lucide-react' {
+  import type { ComponentType, SVGProps } from 'react';
+
+  type LucideComponent = ComponentType<SVGProps<SVGSVGElement>>;
+
+  export const AlertTriangle: LucideComponent;
+  export const ArrowLeft: LucideComponent;
+  export const ArrowRight: LucideComponent;
+  export const ArrowUpRight: LucideComponent;
+  export const Award: LucideComponent;
+  export const Building2: LucideComponent;
+  export const Check: LucideComponent;
+  export const CheckCircle: LucideComponent;
+  export const ChevronDown: LucideComponent;
+  export const ChevronLeft: LucideComponent;
+  export const ChevronRight: LucideComponent;
+  export const Clock: LucideComponent;
+  export const Cookie: LucideComponent;
+  export const Database: LucideComponent;
+  export const DollarSign: LucideComponent;
+  export const Edit2: LucideComponent;
+  export const ExternalLink: LucideComponent;
+  export const Eye: LucideComponent;
+  export const EyeOff: LucideComponent;
+  export const Facebook: LucideComponent;
+  export const FileText: LucideComponent;
+  export const Filter: LucideComponent;
+  export const FolderPlus: LucideComponent;
+  export const Grid: LucideComponent;
+  export const Grid3X3: LucideComponent;
+  export const Instagram: LucideComponent;
+  export const LayoutDashboard: LucideComponent;
+  export const List: LucideComponent;
+  export const Lock: LucideComponent;
+  export const LogOut: LucideComponent;
+  export const Mail: LucideComponent;
+  export const MapPin: LucideComponent;
+  export const Menu: LucideComponent;
+  export const Package: LucideComponent;
+  export const Phone: LucideComponent;
+  export const Play: LucideComponent;
+  export const Plus: LucideComponent;
+  export const Save: LucideComponent;
+  export const Scale: LucideComponent;
+  export const Search: LucideComponent;
+  export const Send: LucideComponent;
+  export const Settings: LucideComponent;
+  export const Share2: LucideComponent;
+  export const Shield: LucideComponent;
+  export const ShoppingBag: LucideComponent;
+  export const Sparkles: LucideComponent;
+  export const Star: LucideComponent;
+  export const TrendingUp: LucideComponent;
+  export const Trash2: LucideComponent;
+  export const Twitter: LucideComponent;
+  export const Upload: LucideComponent;
+  export const User: LucideComponent;
+  export const X: LucideComponent;
+  export const Youtube: LucideComponent;
+  export const Zap: LucideComponent;
+  export const icons: Record<string, LucideComponent>;
+  export const createLucideIcon: (...args: unknown[]) => ComponentType<SVGProps<SVGSVGElement>>;
+  export const Icon: ComponentType<SVGProps<SVGSVGElement>>;
+  export const LucideIcon: ComponentType<SVGProps<SVGSVGElement>>;
+
+}
