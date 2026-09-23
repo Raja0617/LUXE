@@ -56,23 +56,24 @@ export default function ShopFeatures() {
   const [showFilters, setShowFilters] =
     useState(false);
 
-  const [wishlist, setWishlist] = useState<string[]>(() => {
-    try {
-      const stored = localStorage.getItem(
-        WISHLIST_STORAGE_KEY
-      );
+  const [wishlist, setWishlist] =
+    useState<string[]>(() => {
+      try {
+        const stored = localStorage.getItem(
+          WISHLIST_STORAGE_KEY
+        );
 
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
+        return stored ? JSON.parse(stored) : [];
+      } catch {
+        return [];
+      }
+    });
 
   // =========================================================
   // PRICE HELPER
   // =========================================================
 
-  const getNumericPrice = (price: string) => {
+  const getNumericPrice = (price: unknown) => {
     if (!price) return 0;
 
     const cleaned = String(price)
@@ -82,6 +83,62 @@ export default function ShopFeatures() {
     const value = parseFloat(cleaned);
 
     return Number.isFinite(value) ? value : 0;
+  };
+
+  // =========================================================
+  // IMAGE HELPER
+  // =========================================================
+
+  const getProductImages = (product: any): string[] => {
+    const possibleImages = product?.images;
+
+    // images: ["url1", "url2"]
+    if (Array.isArray(possibleImages)) {
+      return possibleImages
+        .map((image) => {
+          if (typeof image === 'string') {
+            return image.trim();
+          }
+
+          // Handles objects such as { url: "..." }
+          if (
+            image &&
+            typeof image === 'object' &&
+            typeof image.url === 'string'
+          ) {
+            return image.url.trim();
+          }
+
+          return '';
+        })
+        .filter(Boolean);
+    }
+
+    // images: "single-url"
+    if (typeof possibleImages === 'string') {
+      return possibleImages
+        .split(',')
+        .map((image) => image.trim())
+        .filter(Boolean);
+    }
+
+    // image: "single-url"
+    if (
+      typeof product?.image === 'string' &&
+      product.image.trim()
+    ) {
+      return [product.image.trim()];
+    }
+
+    // imageUrl: "single-url"
+    if (
+      typeof product?.imageUrl === 'string' &&
+      product.imageUrl.trim()
+    ) {
+      return [product.imageUrl.trim()];
+    }
+
+    return [];
   };
 
   // =========================================================
@@ -100,9 +157,10 @@ export default function ShopFeatures() {
         WISHLIST_STORAGE_KEY,
         JSON.stringify(updated)
       );
+
       window.dispatchEvent(
-  new Event('wishlistUpdated')
-);
+        new Event('wishlistUpdated')
+      );
 
       return updated;
     });
@@ -114,8 +172,10 @@ export default function ShopFeatures() {
 
   const platforms = useMemo(() => {
     const values = products
-      .map((product) =>
-        String(product.platformName || 'Amazon').trim()
+      .map((product: any) =>
+        String(
+          product.platformName || 'Amazon'
+        ).trim()
       )
       .filter(Boolean);
 
@@ -129,18 +189,16 @@ export default function ShopFeatures() {
   const filteredProducts = useMemo(() => {
     let result = [...products];
 
-    // Category
     if (categoryFilter !== 'all') {
       result = result.filter(
-        (product) =>
+        (product: any) =>
           product.category === categoryFilter
       );
     }
 
-    // Platform
     if (platformFilter !== 'all') {
       result = result.filter(
-        (product) =>
+        (product: any) =>
           String(
             product.platformName || 'Amazon'
           ).toLowerCase() ===
@@ -148,50 +206,45 @@ export default function ShopFeatures() {
       );
     }
 
-    // Rating
     if (ratingFilter !== 'all') {
       const minimumRating =
         Number(ratingFilter);
 
       result = result.filter(
-        (product) =>
+        (product: any) =>
           Number(product.rating || 0) >=
           minimumRating
       );
     }
 
-    // Badge
     if (badgeFilter !== 'all') {
       result = result.filter(
-        (product) =>
+        (product: any) =>
           product.badge === badgeFilter
       );
     }
 
-    // Price
     if (priceFilter !== 'all') {
       if (priceFilter === 'under999') {
         result = result.filter(
-          (product) =>
+          (product: any) =>
             getNumericPrice(product.price) < 999
         );
       }
 
       if (priceFilter === '999-2499') {
-        result = result.filter((product) => {
-          const price = getNumericPrice(
-            product.price
-          );
+        result = result.filter((product: any) => {
+          const price =
+            getNumericPrice(product.price);
 
           return price >= 999 && price <= 2499;
         });
       }
 
       if (priceFilter === '2500-4999') {
-        result = result.filter((product) => {
-          const price = getNumericPrice(
-            product.price
-          );
+        result = result.filter((product: any) => {
+          const price =
+            getNumericPrice(product.price);
 
           return price >= 2500 && price <= 4999;
         });
@@ -199,16 +252,15 @@ export default function ShopFeatures() {
 
       if (priceFilter === '5000+') {
         result = result.filter(
-          (product) =>
+          (product: any) =>
             getNumericPrice(product.price) >= 5000
         );
       }
     }
 
-    // Sorting
     if (sortBy === 'price-low') {
       result.sort(
-        (a, b) =>
+        (a: any, b: any) =>
           getNumericPrice(a.price) -
           getNumericPrice(b.price)
       );
@@ -216,7 +268,7 @@ export default function ShopFeatures() {
 
     if (sortBy === 'price-high') {
       result.sort(
-        (a, b) =>
+        (a: any, b: any) =>
           getNumericPrice(b.price) -
           getNumericPrice(a.price)
       );
@@ -224,7 +276,7 @@ export default function ShopFeatures() {
 
     if (sortBy === 'rating') {
       result.sort(
-        (a, b) =>
+        (a: any, b: any) =>
           Number(b.rating || 0) -
           Number(a.rating || 0)
       );
@@ -232,7 +284,7 @@ export default function ShopFeatures() {
 
     if (sortBy === 'popular') {
       result.sort(
-        (a, b) =>
+        (a: any, b: any) =>
           Number(b.reviews || 0) -
           Number(a.reviews || 0)
       );
@@ -263,7 +315,7 @@ export default function ShopFeatures() {
     if (dealTab === 'today') {
       return sorted
         .filter(
-          (product) =>
+          (product: any) =>
             product.badge === 'Best Seller' ||
             product.badge === 'Premium' ||
             getNumericPrice(product.price) < 999
@@ -274,7 +326,7 @@ export default function ShopFeatures() {
     if (dealTab === 'best') {
       return sorted
         .sort(
-          (a, b) =>
+          (a: any, b: any) =>
             Number(b.reviews || 0) -
             Number(a.reviews || 0)
         )
@@ -284,7 +336,7 @@ export default function ShopFeatures() {
     if (dealTab === 'under999') {
       return sorted
         .filter(
-          (product) =>
+          (product: any) =>
             getNumericPrice(product.price) < 999
         )
         .slice(0, 8);
@@ -293,7 +345,7 @@ export default function ShopFeatures() {
     if (dealTab === 'trending') {
       return sorted
         .filter(
-          (product) =>
+          (product: any) =>
             product.badge === 'Trending'
         )
         .slice(0, 8);
@@ -322,44 +374,51 @@ export default function ShopFeatures() {
   return (
     <section
       id="shop-features"
-      className="py-16 sm:py-20 md:py-24 bg-white"
+      className="bg-white py-16 sm:py-20 md:py-24"
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 
         {/* =================================================
-            DEALS / OFFERS
+            DEALS
         ================================================= */}
 
         <div className="mb-16">
           <div className="mb-8">
-            <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#d4af37]/10 text-[#b8860b] rounded-full text-xs sm:text-sm font-semibold">
+            <span className="inline-flex items-center gap-2 rounded-full bg-[#d4af37]/10 px-3 py-1.5 text-xs font-semibold text-[#b8860b] sm:text-sm">
               <span>🔥</span>
               Deals & Offers
             </span>
 
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mt-3 logo-font">
+            <h2 className="logo-font mt-3 text-3xl font-bold text-gray-900 sm:text-4xl">
               Discover Great Deals
             </h2>
 
-            <p className="text-gray-500 mt-2">
+            <p className="mt-2 text-gray-500">
               Find trending products, popular picks and special offers.
             </p>
           </div>
 
-          {/* Deal Tabs */}
-          <div className="flex gap-2 overflow-x-auto pb-2 mb-6">
+          <div
+            className="mb-6 flex w-full min-w-0 flex-nowrap gap-2 overflow-x-auto overflow-y-hidden pb-2 scroll-smooth"
+            style={{
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+            }}
+          >
             <DealButton
               active={dealTab === 'today'}
               onClick={() => setDealTab('today')}
               icon="🔥"
+              mobileLabel="Today"
             >
-              Today&apos;s Deals
+              Today's Deals
             </DealButton>
 
             <DealButton
               active={dealTab === 'best'}
               onClick={() => setDealTab('best')}
               icon="🏷️"
+              mobileLabel="Best"
             >
               Best Deals
             </DealButton>
@@ -368,6 +427,7 @@ export default function ShopFeatures() {
               active={dealTab === 'under999'}
               onClick={() => setDealTab('under999')}
               icon="🏷️"
+              mobileLabel="Under ₹999"
             >
               Under ₹999
             </DealButton>
@@ -376,6 +436,7 @@ export default function ShopFeatures() {
               active={dealTab === 'trending'}
               onClick={() => setDealTab('trending')}
               icon="✨"
+              mobileLabel="Trending"
             >
               Trending
             </DealButton>
@@ -384,31 +445,29 @@ export default function ShopFeatures() {
               active={dealTab === 'new'}
               onClick={() => setDealTab('new')}
               icon="✨"
+              mobileLabel="New"
             >
               New Arrivals
             </DealButton>
           </div>
 
-          {/* Deal Products */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-            {dealProducts.map((product) => (
+          <div className="grid grid-cols-2 gap-3 sm:gap-6 md:grid-cols-3 lg:grid-cols-4">
+            {dealProducts.map((product: any) => (
               <MiniProductCard
                 key={product.id}
                 product={product}
                 wishlist={wishlist}
                 onWishlist={toggleWishlist}
-                trackAffiliateClick={
-                  trackAffiliateClick
-                }
+                trackAffiliateClick={trackAffiliateClick}
               />
             ))}
           </div>
 
           {dealProducts.length === 0 && (
-            <div className="text-center py-12 bg-gray-50 rounded-2xl">
+            <div className="rounded-2xl bg-gray-50 py-12 text-center">
               <span className="text-3xl">🏷️</span>
 
-              <p className="text-gray-500 mt-3">
+              <p className="mt-3 text-gray-500">
                 No products available in this section yet.
               </p>
             </div>
@@ -416,18 +475,18 @@ export default function ShopFeatures() {
         </div>
 
         {/* =================================================
-            SHOP FILTER
+            SHOP
         ================================================= */}
 
         <div>
-          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5 mb-6">
+          <div className="mb-6 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs sm:text-sm font-semibold">
+              <span className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 sm:text-sm">
                 <span>☰</span>
                 Shop
               </span>
 
-              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mt-3 logo-font">
+              <h2 className="logo-font mt-3 text-3xl font-bold text-gray-900 sm:text-4xl">
                 Browse Products
               </h2>
             </div>
@@ -437,22 +496,22 @@ export default function ShopFeatures() {
               onClick={() =>
                 setShowFilters(!showFilters)
               }
-              className="inline-flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-semibold text-gray-700 transition-colors lg:hidden"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-100 px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-200 lg:hidden"
             >
               <span>☰</span>
               Filters
             </button>
           </div>
 
-          {/* Filter Panel */}
+          {/* FILTERS */}
+
           <div
             className={`${
               showFilters ? 'block' : 'hidden'
-            } lg:block bg-gray-50 rounded-2xl p-4 sm:p-5 mb-6`}
+            } mb-6 rounded-2xl bg-gray-50 p-4 sm:p-5 lg:block`}
           >
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
 
-              {/* Category */}
               <FilterSelect
                 label="Category"
                 value={categoryFilter}
@@ -462,7 +521,7 @@ export default function ShopFeatures() {
                   All Categories
                 </option>
 
-                {categories.map((category) => (
+                {categories.map((category: any) => (
                   <option
                     key={category.id}
                     value={category.id}
@@ -472,7 +531,6 @@ export default function ShopFeatures() {
                 ))}
               </FilterSelect>
 
-              {/* Platform */}
               <FilterSelect
                 label="Platform"
                 value={platformFilter}
@@ -492,7 +550,6 @@ export default function ShopFeatures() {
                 ))}
               </FilterSelect>
 
-              {/* Price */}
               <FilterSelect
                 label="Price"
                 value={priceFilter}
@@ -519,7 +576,6 @@ export default function ShopFeatures() {
                 </option>
               </FilterSelect>
 
-              {/* Rating */}
               <FilterSelect
                 label="Rating"
                 value={ratingFilter}
@@ -542,7 +598,6 @@ export default function ShopFeatures() {
                 </option>
               </FilterSelect>
 
-              {/* Badge */}
               <FilterSelect
                 label="Type"
                 value={badgeFilter}
@@ -569,7 +624,6 @@ export default function ShopFeatures() {
                 </option>
               </FilterSelect>
 
-              {/* Sort */}
               <FilterSelect
                 label="Sort"
                 value={sortBy}
@@ -601,21 +655,21 @@ export default function ShopFeatures() {
               </FilterSelect>
             </div>
 
-            {/* Reset */}
-            <div className="flex justify-end mt-4">
+            <div className="mt-4 flex justify-end">
               <button
                 type="button"
                 onClick={resetFilters}
                 className="inline-flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-gray-900"
               >
-                <X className="w-4 h-4" />
+                <X className="h-4 w-4" />
                 Reset Filters
               </button>
             </div>
           </div>
 
-          {/* Results */}
-          <div className="flex items-center justify-between mb-5">
+          {/* RESULTS */}
+
+          <div className="mb-5 flex items-center justify-between">
             <p className="text-sm text-gray-500">
               Showing{' '}
               <span className="font-semibold text-gray-900">
@@ -624,7 +678,7 @@ export default function ShopFeatures() {
               products
             </p>
 
-            <div className="hidden sm:flex items-center gap-2 text-xs text-gray-400">
+            <div className="hidden items-center gap-2 text-xs text-gray-400 sm:flex">
               <span>↕</span>
               Sorted by{' '}
               <span className="font-medium text-gray-600">
@@ -633,37 +687,36 @@ export default function ShopFeatures() {
             </div>
           </div>
 
-          {/* Product Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-            {filteredProducts.map((product) => (
+          {/* PRODUCT GRID */}
+
+          <div className="grid grid-cols-2 gap-3 sm:gap-6 md:grid-cols-3 lg:grid-cols-4">
+            {filteredProducts.map((product: any) => (
               <MiniProductCard
                 key={product.id}
                 product={product}
                 wishlist={wishlist}
                 onWishlist={toggleWishlist}
-                trackAffiliateClick={
-                  trackAffiliateClick
-                }
+                trackAffiliateClick={trackAffiliateClick}
               />
             ))}
           </div>
 
           {filteredProducts.length === 0 && (
-            <div className="text-center py-16 bg-gray-50 rounded-2xl">
+            <div className="rounded-2xl bg-gray-50 py-16 text-center">
               <span className="text-3xl">☰</span>
 
-              <h3 className="font-semibold text-gray-700 mt-3">
+              <h3 className="mt-3 font-semibold text-gray-700">
                 No products found
               </h3>
 
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="mt-1 text-sm text-gray-500">
                 Try changing your filters.
               </p>
 
               <button
                 type="button"
                 onClick={resetFilters}
-                className="mt-5 px-5 py-2.5 bg-gray-900 text-white rounded-full text-sm font-semibold"
+                className="mt-5 rounded-full bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white"
               >
                 Clear Filters
               </button>
@@ -675,7 +728,6 @@ export default function ShopFeatures() {
   );
 }
 
-
 // =========================================================
 // DEAL BUTTON
 // =========================================================
@@ -685,28 +737,42 @@ function DealButton({
   active,
   onClick,
   icon,
+  mobileLabel,
 }: {
   children: React.ReactNode;
   active: boolean;
   onClick: () => void;
   icon: string;
+  mobileLabel: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`flex items-center gap-2 px-4 py-2.5 rounded-full whitespace-nowrap text-sm font-semibold transition-all ${
-        active
-          ? 'bg-gray-900 text-white shadow-md'
-          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-      }`}
+      className={`
+        flex shrink-0 snap-start items-center gap-1.5
+        whitespace-nowrap rounded-full px-3.5 py-2.5
+        text-xs font-semibold transition-all
+        sm:gap-2 sm:px-4 sm:text-sm
+        ${
+          active
+            ? 'bg-gray-900 text-white shadow-md'
+            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+        }
+      `}
     >
       <span>{icon}</span>
-      {children}
+
+      <span className="sm:hidden">
+        {mobileLabel}
+      </span>
+
+      <span className="hidden sm:inline">
+        {children}
+      </span>
     </button>
   );
 }
-
 
 // =========================================================
 // FILTER SELECT
@@ -725,7 +791,7 @@ function FilterSelect({
 }) {
   return (
     <div>
-      <label className="block text-xs font-semibold text-gray-500 mb-1.5">
+      <label className="mb-1.5 block text-xs font-semibold text-gray-500">
         {label}
       </label>
 
@@ -735,17 +801,16 @@ function FilterSelect({
           onChange={(e) =>
             onChange(e.target.value)
           }
-          className="w-full appearance-none px-3 py-2.5 pr-9 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:border-[#d4af37]"
+          className="w-full appearance-none rounded-xl border border-gray-200 bg-white px-3 py-2.5 pr-9 text-sm text-gray-700 focus:border-[#d4af37] focus:outline-none"
         >
           {children}
         </select>
 
-        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
       </div>
     </div>
   );
 }
-
 
 // =========================================================
 // MINI PRODUCT CARD
@@ -765,13 +830,7 @@ function MiniProductCard({
     platform: string
   ) => Promise<void>;
 }) {
-  const images =
-    product.images &&
-    product.images.length > 0
-      ? product.images
-      : product.image
-      ? [product.image]
-      : [];
+  const images = getProductImages(product);
 
   const image = images[0] || '';
 
@@ -789,7 +848,7 @@ function MiniProductCard({
   const handleClick = () => {
     if (!affiliateLink) return;
 
-    trackAffiliateClick(
+    void trackAffiliateClick(
       product,
       platformName
     );
@@ -806,37 +865,54 @@ function MiniProductCard({
         opacity: 1,
         y: 0,
       }}
-      className="group bg-white rounded-2xl overflow-hidden border border-gray-100 hover:border-gray-200 hover:shadow-xl transition-all duration-300"
+      className="
+        group flex min-w-0 flex-col overflow-hidden
+        rounded-2xl border border-gray-100 bg-white
+        transition-all duration-300
+        hover:border-gray-200 hover:shadow-xl
+      "
     >
-      {/* Image */}
+      {/* IMAGE */}
+
       <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
 
         {image ? (
           <img
             src={image}
-            alt={product.name}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            alt={product.name || 'Product'}
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
             loading="lazy"
+            onError={(event) => {
+              event.currentTarget.style.display =
+                'none';
+            }}
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
+          <div className="flex h-full w-full items-center justify-center">
             <span className="text-2xl text-gray-300">
               🏷️
             </span>
           </div>
         )}
 
-        {/* Wishlist */}
+        {/* WISHLIST */}
+
         <button
           type="button"
           onClick={() =>
             onWishlist(product.id)
           }
-          className={`absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center backdrop-blur-md transition-all z-10 ${
-            isWishlisted
-              ? 'bg-red-500 text-white'
-              : 'bg-white/90 text-gray-600 hover:bg-white'
-          }`}
+          className={`
+            absolute right-2.5 top-2.5 z-10
+            flex h-9 w-9 items-center justify-center
+            rounded-full backdrop-blur-md transition-all
+            sm:right-3 sm:top-3
+            ${
+              isWishlisted
+                ? 'bg-red-500 text-white'
+                : 'bg-white/90 text-gray-600 hover:bg-white'
+            }
+          `}
           aria-label={
             isWishlisted
               ? 'Remove from wishlist'
@@ -848,28 +924,31 @@ function MiniProductCard({
           </span>
         </button>
 
-        {/* Badge */}
+        {/* BADGE */}
+
         {product.badge && (
-          <div className="absolute bottom-3 left-3">
-            <span className="px-2.5 py-1 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-white rounded-full text-[10px] font-semibold shadow-sm">
+          <div className="absolute bottom-2.5 left-2.5 sm:bottom-3 sm:left-3">
+            <span className="rounded-full bg-gradient-to-r from-[#d4af37] to-[#b8860b] px-2 py-1 text-[9px] font-semibold text-white shadow-sm sm:px-2.5 sm:text-[10px]">
               {product.badge}
             </span>
           </div>
         )}
       </div>
 
-      {/* Content */}
-      <div className="p-4">
+      {/* CONTENT */}
 
-        {/* Rating */}
-        <div className="flex items-center gap-1 mb-1.5">
-          <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
+      <div className="flex min-w-0 flex-1 flex-col p-3 sm:p-4">
 
-          <span className="text-xs font-medium">
+        {/* RATING */}
+
+        <div className="mb-1.5 flex min-w-0 items-center gap-1">
+          <Star className="h-3.5 w-3.5 shrink-0 fill-yellow-400 text-yellow-400" />
+
+          <span className="shrink-0 text-xs font-medium">
             {product.rating || '4.5'}
           </span>
 
-          <span className="text-xs text-gray-400">
+          <span className="min-w-0 truncate text-xs text-gray-400">
             (
             {Number(
               product.reviews || 0
@@ -878,21 +957,24 @@ function MiniProductCard({
           </span>
         </div>
 
-        {/* Name */}
-        <h3 className="font-semibold text-gray-900 text-sm sm:text-base line-clamp-1">
-          {product.name}
+        {/* NAME */}
+
+        <h3 className="line-clamp-1 text-sm font-semibold text-gray-900 sm:text-base">
+          {product.name || 'Product'}
         </h3>
 
-        {/* Description */}
-        <p className="text-xs sm:text-sm text-gray-500 mt-1 line-clamp-2 min-h-[32px]">
-          {product.description}
+        {/* DESCRIPTION */}
+
+        <p className="mt-1 min-h-[32px] line-clamp-2 text-xs text-gray-500 sm:text-sm">
+          {product.description || ''}
         </p>
 
-        {/* Price + Button */}
-        <div className="flex items-center justify-between gap-2 mt-4">
+        {/* PRICE */}
 
-          <span className="font-bold text-gray-900 text-sm sm:text-base">
-            {product.price}
+        <div className="mt-auto flex min-w-0 items-center justify-between gap-2 pt-4">
+
+          <span className="min-w-0 flex-1 truncate text-sm font-bold text-gray-900 sm:text-base">
+            {product.price || ''}
           </span>
 
           {affiliateLink && (
@@ -907,11 +989,25 @@ function MiniProductCard({
               whileTap={{
                 scale: 0.98,
               }}
-              className="inline-flex items-center gap-1.5 px-3 py-2 bg-gray-900 text-white rounded-full text-[10px] sm:text-xs font-semibold whitespace-nowrap"
+              className="
+                inline-flex shrink-0 items-center
+                justify-center gap-1 whitespace-nowrap
+                rounded-full bg-gray-900 px-2.5 py-2.5
+                text-[10px] font-semibold text-white
+                hover:bg-gray-800
+                sm:gap-1.5 sm:px-3 sm:py-2 sm:text-xs
+              "
+              aria-label={`View on ${platformName}`}
             >
-              View on {platformName}
+              <span className="max-w-[70px] truncate sm:hidden">
+                {platformName}
+              </span>
 
-              <ExternalLink className="w-3 h-3" />
+              <span className="hidden sm:inline">
+                View on {platformName}
+              </span>
+
+              <ExternalLink className="hidden h-3 w-3 shrink-0 sm:block" />
             </motion.a>
           )}
         </div>
@@ -920,14 +1016,62 @@ function MiniProductCard({
   );
 }
 
+// =========================================================
+// IMAGE HELPER
+// =========================================================
+
+function getProductImages(product: any): string[] {
+  const possibleImages = product?.images;
+
+  if (Array.isArray(possibleImages)) {
+    return possibleImages
+      .map((image) => {
+        if (typeof image === 'string') {
+          return image.trim();
+        }
+
+        if (
+          image &&
+          typeof image === 'object' &&
+          typeof image.url === 'string'
+        ) {
+          return image.url.trim();
+        }
+
+        return '';
+      })
+      .filter(Boolean);
+  }
+
+  if (typeof possibleImages === 'string') {
+    return possibleImages
+      .split(',')
+      .map((image) => image.trim())
+      .filter(Boolean);
+  }
+
+  if (
+    typeof product?.image === 'string' &&
+    product.image.trim()
+  ) {
+    return [product.image.trim()];
+  }
+
+  if (
+    typeof product?.imageUrl === 'string' &&
+    product.imageUrl.trim()
+  ) {
+    return [product.imageUrl.trim()];
+  }
+
+  return [];
+}
 
 // =========================================================
 // SORT LABEL
 // =========================================================
 
-function getSortLabel(
-  sort: SortOption
-) {
+function getSortLabel(sort: SortOption) {
   switch (sort) {
     case 'price-low':
       return 'Price Low → High';
@@ -945,3 +1089,4 @@ function getSortLabel(
       return 'Popular';
   }
 }
+
