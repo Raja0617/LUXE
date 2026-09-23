@@ -86,62 +86,6 @@ export default function ShopFeatures() {
   };
 
   // =========================================================
-  // IMAGE HELPER
-  // =========================================================
-
-  const getProductImages = (product: any): string[] => {
-    const possibleImages = product?.images;
-
-    // images: ["url1", "url2"]
-    if (Array.isArray(possibleImages)) {
-      return possibleImages
-        .map((image) => {
-          if (typeof image === 'string') {
-            return image.trim();
-          }
-
-          // Handles objects such as { url: "..." }
-          if (
-            image &&
-            typeof image === 'object' &&
-            typeof image.url === 'string'
-          ) {
-            return image.url.trim();
-          }
-
-          return '';
-        })
-        .filter(Boolean);
-    }
-
-    // images: "single-url"
-    if (typeof possibleImages === 'string') {
-      return possibleImages
-        .split(',')
-        .map((image) => image.trim())
-        .filter(Boolean);
-    }
-
-    // image: "single-url"
-    if (
-      typeof product?.image === 'string' &&
-      product.image.trim()
-    ) {
-      return [product.image.trim()];
-    }
-
-    // imageUrl: "single-url"
-    if (
-      typeof product?.imageUrl === 'string' &&
-      product.imageUrl.trim()
-    ) {
-      return [product.imageUrl.trim()];
-    }
-
-    return [];
-  };
-
-  // =========================================================
   // WISHLIST
   // =========================================================
 
@@ -1023,13 +967,15 @@ function MiniProductCard({
 function getProductImages(product: any): string[] {
   const possibleImages = product?.images;
 
+  // images: ["url1", "url2"]
   if (Array.isArray(possibleImages)) {
     return possibleImages
-      .map((image) => {
+      .map((image: any) => {
         if (typeof image === 'string') {
           return image.trim();
         }
 
+        // Handles objects such as { url: "..." }
         if (
           image &&
           typeof image === 'object' &&
@@ -1043,13 +989,15 @@ function getProductImages(product: any): string[] {
       .filter(Boolean);
   }
 
+  // images: "url1,url2"
   if (typeof possibleImages === 'string') {
     return possibleImages
       .split(',')
-      .map((image) => image.trim())
+      .map((image: string) => image.trim())
       .filter(Boolean);
   }
 
+  // image: "single-url"
   if (
     typeof product?.image === 'string' &&
     product.image.trim()
@@ -1057,6 +1005,7 @@ function getProductImages(product: any): string[] {
     return [product.image.trim()];
   }
 
+  // imageUrl: "single-url"
   if (
     typeof product?.imageUrl === 'string' &&
     product.imageUrl.trim()
