@@ -1,6 +1,7 @@
 
 import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import {
   Star,
   ExternalLink,
@@ -31,6 +32,8 @@ export default function ShopFeatures() {
     categories,
     trackAffiliateClick,
   } = useProducts();
+
+  const navigate = useNavigate();
 
   const [sortBy, setSortBy] =
     useState<SortOption>('popular');
@@ -83,6 +86,16 @@ export default function ShopFeatures() {
     const value = parseFloat(cleaned);
 
     return Number.isFinite(value) ? value : 0;
+  };
+
+  // =========================================================
+  // OPEN PRODUCT DETAILS
+  // =========================================================
+
+  const openProductDetails = (productId: string) => {
+    if (!productId) return;
+
+    navigate(`/product/${productId}`);
   };
 
   // =========================================================
@@ -402,6 +415,7 @@ export default function ShopFeatures() {
                 product={product}
                 wishlist={wishlist}
                 onWishlist={toggleWishlist}
+                onOpenProduct={openProductDetails}
                 trackAffiliateClick={trackAffiliateClick}
               />
             ))}
@@ -640,6 +654,7 @@ export default function ShopFeatures() {
                 product={product}
                 wishlist={wishlist}
                 onWishlist={toggleWishlist}
+                onOpenProduct={openProductDetails}
                 trackAffiliateClick={trackAffiliateClick}
               />
             ))}
@@ -764,11 +779,13 @@ function MiniProductCard({
   product,
   wishlist,
   onWishlist,
+  onOpenProduct,
   trackAffiliateClick,
 }: {
   product: any;
   wishlist: string[];
   onWishlist: (id: string) => void;
+  onOpenProduct: (id: string) => void;
   trackAffiliateClick: (
     product: any,
     platform: string
@@ -789,7 +806,41 @@ function MiniProductCard({
   const isWishlisted =
     wishlist.includes(product.id);
 
-  const handleClick = () => {
+  // =======================================================
+  // CARD CLICK
+  // =======================================================
+
+  const handleCardClick = () => {
+    onOpenProduct(String(product.id));
+  };
+
+  // =======================================================
+  // KEYBOARD ACCESS
+  // =======================================================
+
+  const handleCardKeyDown = (
+    event: React.KeyboardEvent<HTMLDivElement>
+  ) => {
+    if (
+      event.key === 'Enter' ||
+      event.key === ' '
+    ) {
+      event.preventDefault();
+      handleCardClick();
+    }
+  };
+
+  // =======================================================
+  // AFFILIATE BUTTON CLICK
+  // =======================================================
+
+  const handleAffiliateClick = (
+    event: React.MouseEvent<HTMLAnchorElement>
+  ) => {
+    // IMPORTANT:
+    // Prevent the parent product card click.
+    event.stopPropagation();
+
     if (!affiliateLink) return;
 
     void trackAffiliateClick(
@@ -809,11 +860,17 @@ function MiniProductCard({
         opacity: 1,
         y: 0,
       }}
+      role="button"
+      tabIndex={0}
+      onClick={handleCardClick}
+      onKeyDown={handleCardKeyDown}
       className="
-        group flex min-w-0 flex-col overflow-hidden
-        rounded-2xl border border-gray-100 bg-white
-        transition-all duration-300
+        group flex min-w-0 cursor-pointer flex-col
+        overflow-hidden rounded-2xl border border-gray-100
+        bg-white transition-all duration-300
         hover:border-gray-200 hover:shadow-xl
+        focus:outline-none focus:ring-2
+        focus:ring-[#d4af37]/50
       "
     >
       {/* IMAGE */}
@@ -843,9 +900,11 @@ function MiniProductCard({
 
         <button
           type="button"
-          onClick={() =>
-            onWishlist(product.id)
-          }
+          onClick={(event) => {
+            event.stopPropagation();
+
+            onWishlist(product.id);
+          }}
           className={`
             absolute right-2.5 top-2.5 z-10
             flex h-9 w-9 items-center justify-center
@@ -913,7 +972,7 @@ function MiniProductCard({
           {product.description || ''}
         </p>
 
-        {/* PRICE */}
+        {/* PRICE + AFFILIATE BUTTON */}
 
         <div className="mt-auto flex min-w-0 items-center justify-between gap-2 pt-4">
 
@@ -926,7 +985,7 @@ function MiniProductCard({
               href={affiliateLink}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={handleClick}
+              onClick={handleAffiliateClick}
               whileHover={{
                 scale: 1.02,
               }}
