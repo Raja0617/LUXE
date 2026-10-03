@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import {
   BrowserRouter,
@@ -10,7 +9,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { AdminProvider, useAdmin } from './context/AdminContext';
-import { ProductProvider } from './context/ProductContext'; 
+import { ProductProvider } from './context/ProductContext';
 import { ContactProvider } from './context/ContactContext';
 
 import IntroVideo from './components/IntroVideo';
@@ -224,9 +223,6 @@ function AppContent() {
 
               {/* ==================================================
                   PRODUCT DETAILS
-                  
-                  Example:
-                  /product/abc123
               ================================================== */}
 
               <Route
@@ -357,9 +353,6 @@ function AppContent() {
 
               {/* ==================================================
                   FALLBACK
-                  
-                  If someone enters an invalid URL,
-                  send them back to Home.
               ================================================== */}
 
               <Route
@@ -369,27 +362,30 @@ function AppContent() {
 
             </Routes>
 
+
+            {/* ====================================================
+                ADMIN LOGIN MODAL
+            ==================================================== */}
+
+            <AdminLogin
+              isOpen={showLogin}
+              onClose={() => setShowLogin(false)}
+            />
+
+
+            {/* ====================================================
+                SEARCH MODAL
+                IMPORTANT:
+                This MUST stay inside BrowserRouter because
+                SearchModal uses useNavigate().
+            ==================================================== */}
+
+            <SearchModal
+              isOpen={showSearch}
+              onClose={() => setShowSearch(false)}
+            />
+
           </BrowserRouter>
-
-
-          {/* ====================================================
-              ADMIN LOGIN MODAL
-          ==================================================== */}
-
-          <AdminLogin
-            isOpen={showLogin}
-            onClose={() => setShowLogin(false)}
-          />
-
-
-          {/* ====================================================
-              SEARCH MODAL
-          ==================================================== */}
-
-          <SearchModal
-            isOpen={showSearch}
-            onClose={() => setShowSearch(false)}
-          />
 
         </motion.div>
       )}

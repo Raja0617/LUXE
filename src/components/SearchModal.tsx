@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, X, Star, ExternalLink, Package } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useProducts } from '../context/ProductContext';
 
 interface SearchModalProps {
@@ -9,24 +10,28 @@ interface SearchModalProps {
 }
 
 export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
+  const navigate = useNavigate();
+
   const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const { products, searchProducts, categories } = useProducts();
-  
+
   const searchResults = query.trim() ? searchProducts(query) : [];
   const hasResults = searchResults.length > 0;
-  
+
   // Get related products based on search query category or featured
   const getRelatedProducts = () => {
     if (!query.trim()) return [];
+
     // Find products from similar categories or with badges
     const related = products
       .filter(p => !searchResults.find(r => r.id === p.id))
       .filter(p => p.badge || searchResults.some(r => r.category === p.category))
       .slice(0, 4);
+
     return related;
   };
-  
+
   const relatedProducts = getRelatedProducts();
 
   useEffect(() => {
@@ -37,6 +42,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
       document.body.style.overflow = '';
       setQuery('');
     }
+
     return () => {
       document.body.style.overflow = '';
     };
@@ -47,7 +53,9 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
+
     window.addEventListener('keydown', handleEscape);
+
     return () => window.removeEventListener('keydown', handleEscape);
   }, [onClose]);
 
@@ -81,6 +89,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
             {/* Search Header */}
             <div className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 border-b border-gray-100">
               <Search className="w-5 h-5 sm:w-6 sm:h-6 text-gray-400" />
+
               <input
                 ref={inputRef}
                 type="text"
@@ -89,6 +98,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                 placeholder="Search products, categories..."
                 className="flex-1 text-base sm:text-lg outline-none placeholder:text-gray-400"
               />
+
               {query && (
                 <button
                   onClick={() => setQuery('')}
@@ -97,6 +107,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                   <X className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                 </button>
               )}
+
               <button
                 onClick={onClose}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-xs sm:text-sm font-medium text-gray-500"
@@ -113,6 +124,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                   <h3 className="text-xs sm:text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3 sm:mb-4">
                     Popular Categories
                   </h3>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                     {categories.map((category) => (
                       <button
@@ -127,9 +139,15 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                           alt={category.name}
                           className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover"
                         />
+
                         <div>
-                          <p className="font-medium text-gray-900 text-sm sm:text-base">{category.name}</p>
-                          <p className="text-xs text-gray-500">{category.productCount} products</p>
+                          <p className="font-medium text-gray-900 text-sm sm:text-base">
+                            {category.name}
+                          </p>
+
+                          <p className="text-xs text-gray-500">
+                            {category.productCount} products
+                          </p>
                         </div>
                       </button>
                     ))}
@@ -141,17 +159,23 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                   <h3 className="text-xs sm:text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3 sm:mb-4">
                     {searchResults.length} Results
                   </h3>
+
                   <div className="space-y-2 sm:space-y-3">
                     {searchResults.map((product) => {
                       const images = product.images || [];
-                      const mainImage = images[0] || 'https://images.unsplash.com/photo-1560343090-f0409e92791a?w=600';
-                      
+                      const mainImage =
+                        images[0] ||
+                        'https://images.unsplash.com/photo-1560343090-f0409e92791a?w=600';
+
                       return (
                         <motion.a
                           key={product.id}
-                          href={product.affiliateLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                          href="#"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            onClose();
+                            navigate(`/product/${product.id}`);
+                          }}
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           className="flex items-center gap-3 sm:gap-4 p-2.5 sm:p-3 rounded-lg sm:rounded-xl hover:bg-gray-50 transition-colors group"
@@ -161,20 +185,36 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                             alt={product.name}
                             className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg object-cover bg-gray-100"
                           />
+
                           <div className="flex-1 min-w-0">
                             <h4 className="font-medium text-gray-900 group-hover:text-[#b8860b] transition-colors truncate text-sm sm:text-base">
                               {product.name}
                             </h4>
-                            <p className="text-xs sm:text-sm text-gray-500 line-clamp-1">{product.description}</p>
+
+                            <p className="text-xs sm:text-sm text-gray-500 line-clamp-1">
+                              {product.description}
+                            </p>
+
                             <div className="flex items-center gap-2 mt-0.5 sm:mt-1">
                               <Star className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-yellow-400 text-yellow-400" />
-                              <span className="text-xs text-gray-600">{product.rating}</span>
-                              <span className="text-xs font-semibold text-[#b8860b]">{product.price}</span>
-                              {product.sizes && product.sizes.length > 0 && (
-                                <span className="text-xs text-blue-600">{product.sizes.length} sizes</span>
-                              )}
+
+                              <span className="text-xs text-gray-600">
+                                {product.rating}
+                              </span>
+
+                              <span className="text-xs font-semibold text-[#b8860b]">
+                                {product.price}
+                              </span>
+
+                              {product.sizes &&
+                                product.sizes.length > 0 && (
+                                  <span className="text-xs text-blue-600">
+                                    {product.sizes.length} sizes
+                                  </span>
+                                )}
                             </div>
                           </div>
+
                           <ExternalLink className="w-4 h-4 sm:w-5 sm:h-5 text-gray-300 group-hover:text-[#b8860b] transition-colors flex-shrink-0" />
                         </motion.a>
                       );
@@ -187,11 +227,14 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                       <h3 className="text-xs sm:text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3 sm:mb-4">
                         You May Also Like
                       </h3>
+
                       <div className="grid grid-cols-2 gap-2 sm:gap-3">
                         {relatedProducts.map((product) => {
                           const images = product.images || [];
-                          const mainImage = images[0] || 'https://images.unsplash.com/photo-1560343090-f0409e92791a?w=600';
-                          
+                          const mainImage =
+                            images[0] ||
+                            'https://images.unsplash.com/photo-1560343090-f0409e92791a?w=600';
+
                           return (
                             <a
                               key={product.id}
@@ -206,16 +249,21 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                                   alt={product.name}
                                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                                 />
+
                                 {product.badge && (
                                   <span className="absolute top-1.5 sm:top-2 left-1.5 sm:left-2 px-1.5 sm:px-2 py-0.5 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-white text-[10px] sm:text-xs rounded-full">
                                     {product.badge}
                                   </span>
                                 )}
                               </div>
+
                               <h4 className="text-xs sm:text-sm font-medium text-gray-900 line-clamp-1 group-hover:text-[#b8860b] transition-colors">
                                 {product.name}
                               </h4>
-                              <p className="text-[10px] sm:text-xs text-gray-500">{product.price}</p>
+
+                              <p className="text-[10px] sm:text-xs text-gray-500">
+                                {product.price}
+                              </p>
                             </a>
                           );
                         })}
@@ -233,14 +281,21 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                   >
                     <Package className="w-8 h-8 sm:w-10 sm:h-10 text-[#b8860b]" />
                   </motion.div>
-                  <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">Coming Soon</h3>
+
+                  <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">
+                    Coming Soon
+                  </h3>
+
                   <p className="text-gray-500 mb-4 sm:mb-6 text-sm sm:text-base px-4">
-                    We couldn&apos;t find "{query}" but we&apos;re adding new products daily!
+                    We couldn&apos;t find &quot;{query}&quot; but we&apos;re adding new products daily!
                   </p>
-                  
+
                   {/* Suggested Categories */}
                   <div className="text-left px-2">
-                    <h4 className="text-xs sm:text-sm font-semibold text-gray-700 mb-2 sm:mb-3">Browse these categories:</h4>
+                    <h4 className="text-xs sm:text-sm font-semibold text-gray-700 mb-2 sm:mb-3">
+                      Browse these categories:
+                    </h4>
+
                     <div className="flex flex-wrap gap-1.5 sm:gap-2">
                       {categories.slice(0, 4).map((cat) => (
                         <button
@@ -257,12 +312,17 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                   {/* Related Products */}
                   {relatedProducts.length > 0 && (
                     <div className="mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-gray-100 text-left">
-                      <h4 className="text-xs sm:text-sm font-semibold text-gray-700 mb-2 sm:mb-3">You might also like:</h4>
+                      <h4 className="text-xs sm:text-sm font-semibold text-gray-700 mb-2 sm:mb-3">
+                        You might also like:
+                      </h4>
+
                       <div className="grid grid-cols-2 gap-2 sm:gap-3">
                         {relatedProducts.slice(0, 2).map((product) => {
                           const images = product.images || [];
-                          const mainImage = images[0] || 'https://images.unsplash.com/photo-1560343090-f0409e92791a?w=600';
-                          
+                          const mainImage =
+                            images[0] ||
+                            'https://images.unsplash.com/photo-1560343090-f0409e92791a?w=600';
+
                           return (
                             <a
                               key={product.id}
@@ -278,8 +338,14 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                                   className="w-full h-full object-cover"
                                 />
                               </div>
-                              <h4 className="text-xs sm:text-sm font-medium text-gray-900 line-clamp-1">{product.name}</h4>
-                              <p className="text-[10px] sm:text-xs text-gray-500">{product.price}</p>
+
+                              <h4 className="text-xs sm:text-sm font-medium text-gray-900 line-clamp-1">
+                                {product.name}
+                              </h4>
+
+                              <p className="text-[10px] sm:text-xs text-gray-500">
+                                {product.price}
+                              </p>
                             </a>
                           );
                         })}

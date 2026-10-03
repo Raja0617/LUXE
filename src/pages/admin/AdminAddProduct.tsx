@@ -26,10 +26,59 @@ const sizeOptions = [
   'XXXL',
 ];
 
+// =========================================================
+// GET NUMERIC PRICE
+// =========================================================
+
+const getNumericPrice = (value: string) => {
+  const numeric = Number(
+    value.replace(/[^\d.]/g, '')
+  );
+
+  return Number.isFinite(numeric)
+    ? numeric
+    : 0;
+};
+
+// =========================================================
+// CALCULATE DISCOUNT
+// =========================================================
+
+const calculateDiscount = (
+  originalPrice: string,
+  sellingPrice: string
+) => {
+  const original =
+    getNumericPrice(originalPrice);
+
+  const selling =
+    getNumericPrice(sellingPrice);
+
+  if (
+    original <= 0 ||
+    selling <= 0 ||
+    original <= selling
+  ) {
+    return 0;
+  }
+
+  return Math.round(
+    ((original - selling) / original) * 100
+  );
+};
+
+// =========================================================
+// COMPONENT
+// =========================================================
+
 export default function AdminAddProduct() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const editId = searchParams.get('edit');
+
+  const [searchParams] =
+    useSearchParams();
+
+  const editId =
+    searchParams.get('edit');
 
   const {
     products,
@@ -57,7 +106,13 @@ export default function AdminAddProduct() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
+
+    // Selling Price
     price: '',
+
+    // Original Price / MRP - OPTIONAL
+    originalPrice: '',
+
     rating: '4.5',
     reviews: '0',
     images: [] as string[],
@@ -81,8 +136,7 @@ export default function AdminAddProduct() {
       );
 
       if (product) {
-        // Remove ₹ and commas so the input
-        // contains only the numeric value.
+        // Clean selling price
         const cleanPrice = String(
           product.price || ''
         )
@@ -90,36 +144,66 @@ export default function AdminAddProduct() {
           .replace(/,/g, '')
           .trim();
 
+        // Clean original price / MRP
+        const cleanOriginalPrice =
+          String(
+            (product as any)
+              .originalPrice || ''
+          )
+            .replace(/₹/g, '')
+            .replace(/,/g, '')
+            .trim();
+
         setFormData({
-          name: product.name || '',
+          name:
+            product.name || '',
+
           description:
             product.description || '',
-          price: cleanPrice,
-          rating: String(
-            product.rating ?? 4.5
-          ),
-          reviews: String(
-            product.reviews ?? 0
-          ),
-          images: product.images || [],
+
+          price:
+            cleanPrice,
+
+          originalPrice:
+            cleanOriginalPrice,
+
+          rating:
+            String(
+              product.rating ?? 4.5
+            ),
+
+          reviews:
+            String(
+              product.reviews ?? 0
+            ),
+
+          images:
+            product.images || [],
+
           category:
             product.category || '',
 
           platformName:
-            product.platformName || 'Amazon',
+            product.platformName ||
+            'Amazon',
 
           affiliateLink:
             product.affiliateLink || '',
 
-          badge: product.badge || '',
-          sizes: product.sizes || [],
+          badge:
+            product.badge || '',
+
+          sizes:
+            product.sizes || [],
         });
 
         setSelectedCategory(
           product.category || ''
         );
       }
-    } else if (categories.length > 0) {
+    } else if (
+      categories.length > 0
+    ) {
       setFormData((prev) => ({
         ...prev,
         category:
@@ -145,7 +229,10 @@ export default function AdminAddProduct() {
   ) => {
     const files = e.target.files;
 
-    if (!files || files.length === 0) {
+    if (
+      !files ||
+      files.length === 0
+    ) {
       return;
     }
 
@@ -211,13 +298,12 @@ export default function AdminAddProduct() {
   };
 
   // =========================================================
-  // PRICE INPUT
+  // SELLING PRICE INPUT
   // =========================================================
 
   const handlePriceChange = (
     value: string
   ) => {
-    // Allow only numbers.
     const numericValue =
       value.replace(/\D/g, '');
 
@@ -226,6 +312,53 @@ export default function AdminAddProduct() {
       price: numericValue,
     }));
   };
+
+  // =========================================================
+  // ORIGINAL PRICE / MRP INPUT
+  // =========================================================
+
+  const handleOriginalPriceChange = (
+    value: string
+  ) => {
+    const numericValue =
+      value.replace(/\D/g, '');
+
+    setFormData((prev) => ({
+      ...prev,
+      originalPrice:
+        numericValue,
+    }));
+  };
+
+  // =========================================================
+  // AUTOMATIC DISCOUNT
+  // =========================================================
+
+  const discountPercentage =
+    calculateDiscount(
+      formData.originalPrice,
+      formData.price
+    );
+
+  // =========================================================
+  // MRP VALIDATION
+  // =========================================================
+
+  const originalPriceNumber =
+    getNumericPrice(
+      formData.originalPrice
+    );
+
+  const sellingPriceNumber =
+    getNumericPrice(
+      formData.price
+    );
+
+  const invalidMRP =
+    originalPriceNumber > 0 &&
+    sellingPriceNumber > 0 &&
+    originalPriceNumber <=
+      sellingPriceNumber;
 
   // =========================================================
   // SUBMIT
@@ -240,6 +373,12 @@ export default function AdminAddProduct() {
 
     const numericPrice =
       formData.price
+        .replace(/₹/g, '')
+        .replace(/,/g, '')
+        .trim();
+
+    const numericOriginalPrice =
+      formData.originalPrice
         .replace(/₹/g, '')
         .replace(/,/g, '')
         .trim();
@@ -259,6 +398,7 @@ export default function AdminAddProduct() {
       setSubmitError(
         'Complete all required fields before saving.'
       );
+
       return;
     }
 
@@ -276,17 +416,44 @@ export default function AdminAddProduct() {
       setSubmitError(
         'Enter a valid price in INR.'
       );
+
       return;
     }
 
     // =======================================================
-    // FORMAT INR PRICE
+    // VALIDATE OPTIONAL MRP
+    // =======================================================
+
+    if (
+      numericOriginalPrice &&
+      invalidMRP
+    ) {
+      setSubmitError(
+        'Original Price / MRP must be greater than the Selling Price.'
+      );
+
+      return;
+    }
+
+    // =======================================================
+    // FORMAT SELLING PRICE
     // =======================================================
 
     const formattedPrice =
       `₹${priceNumber.toLocaleString(
         'en-IN'
       )}`;
+
+    // =======================================================
+    // FORMAT ORIGINAL PRICE
+    // =======================================================
+
+    const formattedOriginalPrice =
+      numericOriginalPrice
+        ? `₹${Number(
+            numericOriginalPrice
+          ).toLocaleString('en-IN')}`
+        : undefined;
 
     // =======================================================
     // VALIDATE AFFILIATE URL
@@ -311,6 +478,7 @@ export default function AdminAddProduct() {
       setSubmitError(
         'Enter a valid affiliate link beginning with https://'
       );
+
       return;
     }
 
@@ -325,7 +493,13 @@ export default function AdminAddProduct() {
       description:
         formData.description.trim(),
 
-      price: formattedPrice,
+      // Selling Price
+      price:
+        formattedPrice,
+
+      // Optional Original Price / MRP
+      originalPrice:
+        formattedOriginalPrice,
 
       rating:
         parseFloat(
@@ -356,7 +530,8 @@ export default function AdminAddProduct() {
         formData.affiliateLink.trim(),
 
       badge:
-        formData.badge || undefined,
+        formData.badge ||
+        undefined,
 
       sizes:
         formData.sizes.length > 0
@@ -406,6 +581,7 @@ export default function AdminAddProduct() {
           name: '',
           description: '',
           price: '',
+          originalPrice: '',
           rating: '4.5',
           reviews: '0',
           images: [],
@@ -456,6 +632,14 @@ export default function AdminAddProduct() {
         ).toLocaleString('en-IN')}`
       : '₹0';
 
+  const originalPricePreview =
+    formData.originalPrice
+      ? `₹${Number(
+          formData.originalPrice
+            .replace(/,/g, '')
+        ).toLocaleString('en-IN')}`
+      : '';
+
   // =========================================================
   // UI
   // =========================================================
@@ -472,6 +656,7 @@ export default function AdminAddProduct() {
         className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6"
       >
         <ArrowLeft className="w-4 h-4" />
+
         Back to Products
       </Link>
 
@@ -665,6 +850,7 @@ export default function AdminAddProduct() {
                   className="flex items-center gap-2 px-4 py-3 bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl text-gray-600 hover:border-[#d4af37] hover:text-[#b8860b] transition-colors"
                 >
                   <Upload className="w-5 h-5" />
+
                   <span>
                     Upload Images
                   </span>
@@ -766,7 +952,9 @@ export default function AdminAddProduct() {
 
               <textarea
                 required
-                value={formData.description}
+                value={
+                  formData.description
+                }
                 onChange={(e) =>
                   setFormData(
                     (prev) => ({
@@ -783,7 +971,9 @@ export default function AdminAddProduct() {
 
             </div>
 
-            {/* PRICE */}
+            {/* =================================================
+                SELLING PRICE
+            ================================================= */}
 
             <div>
 
@@ -811,7 +1001,7 @@ export default function AdminAddProduct() {
                     )
                   }
                   className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-[#d4af37] focus:ring-2 focus:ring-[#d4af37]/20"
-                  placeholder="1,000"
+                  placeholder="649"
                 />
 
               </div>
@@ -824,6 +1014,115 @@ export default function AdminAddProduct() {
                   </span>
                 </p>
               )}
+
+            </div>
+
+            {/* =================================================
+                ORIGINAL PRICE / MRP
+            ================================================= */}
+
+            <div>
+
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Original Price / MRP{' '}
+                <span className="font-normal text-gray-500">
+                  (Optional)
+                </span>
+              </label>
+
+              <div className="relative">
+
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 font-semibold">
+                  ₹
+                </span>
+
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={
+                    formData.originalPrice
+                  }
+                  onChange={(e) =>
+                    handleOriginalPriceChange(
+                      e.target.value
+                    )
+                  }
+                  className={`w-full pl-10 pr-4 py-3 bg-gray-50 border rounded-xl focus:outline-none focus:ring-2 ${
+                    invalidMRP
+                      ? 'border-red-400 focus:border-red-400 focus:ring-red-400/20'
+                      : 'border-gray-200 focus:border-[#d4af37] focus:ring-[#d4af37]/20'
+                  }`}
+                  placeholder="2,299"
+                />
+
+              </div>
+
+              {formData.originalPrice && (
+                <p className="text-xs text-gray-500 mt-2">
+                  Will be displayed as:{' '}
+                  <span className="font-semibold text-gray-700">
+                    {originalPricePreview}
+                  </span>
+                </p>
+              )}
+
+              {/* AUTOMATIC DISCOUNT */}
+
+              {discountPercentage > 0 && (
+                <div className="mt-3 flex items-center gap-2">
+
+                  <span className="inline-flex items-center px-3 py-1.5 rounded-full bg-green-100 text-green-700 text-xs font-bold">
+                    {discountPercentage}% OFF
+                  </span>
+
+                  <span className="text-xs text-green-600">
+                    Discount calculated automatically
+                  </span>
+
+                </div>
+              )}
+
+              {/* INVALID MRP */}
+
+              {invalidMRP && (
+                <p className="text-xs text-red-500 mt-2">
+                  Original Price / MRP must be greater than the Selling Price.
+                </p>
+              )}
+
+            </div>
+
+            {/* =================================================
+                AFFILIATE LINK
+            ================================================= */}
+
+            <div className="md:col-span-2">
+
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Affiliate Link{' '}
+                <span className="text-red-500">
+                  *
+                </span>
+              </label>
+
+              <input
+                type="url"
+                required
+                value={
+                  formData.affiliateLink
+                }
+                onChange={(e) =>
+                  setFormData(
+                    (prev) => ({
+                      ...prev,
+                      affiliateLink:
+                        e.target.value,
+                    })
+                  )
+                }
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-[#d4af37] focus:ring-2 focus:ring-[#d4af37]/20"
+                placeholder="https://..."
+              />
 
             </div>
 
@@ -860,38 +1159,6 @@ export default function AdminAddProduct() {
               <p className="text-xs text-gray-500 mt-2">
                 Enter any marketplace name.
               </p>
-
-            </div>
-
-            {/* AFFILIATE LINK */}
-
-            <div className="md:col-span-2">
-
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Affiliate Link{' '}
-                <span className="text-red-500">
-                  *
-                </span>
-              </label>
-
-              <input
-                type="url"
-                required
-                value={
-                  formData.affiliateLink
-                }
-                onChange={(e) =>
-                  setFormData(
-                    (prev) => ({
-                      ...prev,
-                      affiliateLink:
-                        e.target.value,
-                    })
-                  )
-                }
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-[#d4af37] focus:ring-2 focus:ring-[#d4af37]/20"
-                placeholder="https://..."
-              />
 
             </div>
 
@@ -935,7 +1202,9 @@ export default function AdminAddProduct() {
                   step="0.1"
                   min="0"
                   max="5"
-                  value={formData.rating}
+                  value={
+                    formData.rating
+                  }
                   onChange={(e) =>
                     setFormData(
                       (prev) => ({
@@ -949,6 +1218,7 @@ export default function AdminAddProduct() {
                 />
 
               </div>
+
             </div>
 
             {/* REVIEWS */}
@@ -962,7 +1232,9 @@ export default function AdminAddProduct() {
               <input
                 type="number"
                 min="0"
-                value={formData.reviews}
+                value={
+                  formData.reviews
+                }
                 onChange={(e) =>
                   setFormData(
                     (prev) => ({
@@ -999,6 +1271,7 @@ export default function AdminAddProduct() {
                 }
                 className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-[#d4af37] focus:ring-2 focus:ring-[#d4af37]/20"
               >
+
                 <option value="">
                   No Badge
                 </option>
@@ -1018,6 +1291,7 @@ export default function AdminAddProduct() {
                 <option value="Premium">
                   Premium
                 </option>
+
               </select>
 
             </div>
@@ -1062,6 +1336,7 @@ export default function AdminAddProduct() {
                 )}
 
               </div>
+
             </section>
           )}
 

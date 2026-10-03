@@ -1,4 +1,3 @@
-
 import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -25,6 +24,22 @@ type DealTab =
   | 'new';
 
 const WISHLIST_STORAGE_KEY = 'luxefinds_wishlist';
+
+// =========================================================
+// PRICE HELPER
+// =========================================================
+
+function getNumericPrice(price: unknown): number {
+  if (!price) return 0;
+
+  const cleaned = String(price)
+    .replace(/,/g, '')
+    .replace(/[^\d.]/g, '');
+
+  const value = parseFloat(cleaned);
+
+  return Number.isFinite(value) ? value : 0;
+}
 
 export default function ShopFeatures() {
   const {
@@ -71,22 +86,6 @@ export default function ShopFeatures() {
         return [];
       }
     });
-
-  // =========================================================
-  // PRICE HELPER
-  // =========================================================
-
-  const getNumericPrice = (price: unknown) => {
-    if (!price) return 0;
-
-    const cleaned = String(price)
-      .replace(/,/g, '')
-      .replace(/[^\d.]/g, '');
-
-    const value = parseFloat(cleaned);
-
-    return Number.isFinite(value) ? value : 0;
-  };
 
   // =========================================================
   // OPEN PRODUCT DETAILS
@@ -849,6 +848,29 @@ function MiniProductCard({
     );
   };
 
+  // =======================================================
+  // PRICE CALCULATION
+  // =======================================================
+
+  const sellingPrice = getNumericPrice(
+    product.price
+  );
+
+  const originalPrice = getNumericPrice(
+    product.originalPrice
+  );
+
+  const discountPercentage =
+    originalPrice > 0 &&
+    sellingPrice > 0 &&
+    originalPrice > sellingPrice
+      ? Math.round(
+          ((originalPrice - sellingPrice) /
+            originalPrice) *
+            100
+        )
+      : 0;
+
   return (
     <motion.div
       layout
@@ -974,11 +996,40 @@ function MiniProductCard({
 
         {/* PRICE + AFFILIATE BUTTON */}
 
-        <div className="mt-auto flex min-w-0 items-center justify-between gap-2 pt-4">
+        <div className="mt-auto flex min-w-0 items-end justify-between gap-2 pt-4">
 
-          <span className="min-w-0 flex-1 truncate text-sm font-bold text-gray-900 sm:text-base">
-            {product.price || ''}
-          </span>
+          {/* PRICE */}
+
+          <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+
+              {/* SELLING / DISCOUNTED PRICE */}
+
+              <span className="text-sm font-bold text-gray-900 sm:text-base">
+                {product.price || ''}
+              </span>
+
+              {/* ORIGINAL PRICE */}
+
+              {originalPrice > sellingPrice &&
+                originalPrice > 0 && (
+                  <span className="text-[10px] text-gray-400 line-through sm:text-xs">
+                    {product.originalPrice}
+                  </span>
+                )}
+
+              {/* DISCOUNT PERCENTAGE */}
+
+              {discountPercentage > 0 && (
+                <span className="whitespace-nowrap text-[9px] font-bold text-red-500 sm:text-[10px]">
+                  {discountPercentage}% OFF
+                </span>
+              )}
+
+            </div>
+          </div>
+
+          {/* AFFILIATE BUTTON */}
 
           {affiliateLink && (
             <motion.a
@@ -1013,6 +1064,7 @@ function MiniProductCard({
               <ExternalLink className="hidden h-3 w-3 shrink-0 sm:block" />
             </motion.a>
           )}
+
         </div>
       </div>
     </motion.div>
@@ -1097,4 +1149,3 @@ function getSortLabel(sort: SortOption) {
       return 'Popular';
   }
 }
-

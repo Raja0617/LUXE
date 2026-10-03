@@ -37,18 +37,26 @@ interface ProductContextType {
     platform: string
   ) => Promise<void>;
 
-  addProduct: (product: Omit<Product, 'id'>) => Promise<void>;
+  addProduct: (
+    product: Omit<Product, 'id'>
+  ) => Promise<void>;
+
   editProduct: (
     id: string,
     updates: Partial<Product>
   ) => Promise<void>;
-  deleteProduct: (id: string) => Promise<void>;
+
+  deleteProduct: (
+    id: string
+  ) => Promise<void>;
 
   addCategory: (
     category: Omit<Category, 'id' | 'productCount'>
   ) => void;
 
-  deleteCategory: (id: string) => void;
+  deleteCategory: (
+    id: string
+  ) => void;
 
   getProductsByCategory: (
     categoryId: string
@@ -56,19 +64,30 @@ interface ProductContextType {
 
   getFeaturedProducts: () => Product[];
 
-  searchProducts: (query: string) => Product[];
+  searchProducts: (
+    query: string
+  ) => Product[];
 
   activeCategory: string;
-  setActiveCategory: (category: string) => void;
+
+  setActiveCategory: (
+    category: string
+  ) => void;
 
   searchQuery: string;
-  setSearchQuery: (query: string) => void;
+
+  setSearchQuery: (
+    query: string
+  ) => void;
 }
 
 const ProductContext =
-  createContext<ProductContextType | undefined>(undefined);
+  createContext<ProductContextType | undefined>(
+    undefined
+  );
 
-const CATEGORIES_STORAGE_KEY = 'luxefinds_categories';
+const CATEGORIES_STORAGE_KEY =
+  'luxefinds_categories';
 
 const productsCollection = collection(
   db,
@@ -96,6 +115,59 @@ const removeUndefinedFields = <
   ) as T;
 
 // =====================================================
+// NORMALIZE PRODUCT
+// =====================================================
+
+const normalizeProduct = (
+  id: string,
+  data: Record<string, unknown>
+): Product => {
+  let colors: string[] = [];
+
+  // Handle colors saved as an array
+  if (Array.isArray(data.colors)) {
+    colors = data.colors
+      .map((color) => String(color).trim())
+      .filter(Boolean);
+  }
+
+  // Handle colors saved as comma-separated text
+  else if (
+    typeof data.colors === 'string'
+  ) {
+    colors = data.colors
+      .split(',')
+      .map((color) => color.trim())
+      .filter(Boolean);
+  }
+
+  const stockStatus =
+    data.stockStatus === 'Out of Stock'
+      ? 'Out of Stock'
+      : 'In Stock';
+
+  return {
+    ...(data as Omit<Product, 'id'>),
+
+    id,
+
+    originalPrice:
+      typeof data.originalPrice === 'string'
+        ? data.originalPrice
+        : '',
+
+    colors,
+
+    stockStatus,
+
+    dealEndDate:
+      typeof data.dealEndDate === 'string'
+        ? data.dealEndDate
+        : '',
+  };
+};
+
+// =====================================================
 // CATEGORY COUNTS
 // =====================================================
 
@@ -105,8 +177,10 @@ const calculateCategoryCounts = (
 ): Category[] =>
   categories.map((category) => ({
     ...category,
+
     productCount: products.filter(
-      (product) => product.category === category.id
+      (product) =>
+        product.category === category.id
     ).length,
   }));
 
@@ -119,16 +193,22 @@ async function seedDefaultProducts() {
     productsCollection
   );
 
-  if (!existing.empty) return;
+  if (!existing.empty) {
+    return;
+  }
 
   const batch = writeBatch(db);
 
-  initialProducts.forEach(({ id, ...product }) => {
-    batch.set(
-      doc(productsCollection, id),
-      product
-    );
-  });
+  initialProducts.forEach(
+    ({ id, ...product }) => {
+      batch.set(
+        doc(productsCollection, id),
+        removeUndefinedFields(
+          product as Record<string, unknown>
+        )
+      );
+    }
+  );
 
   await batch.commit();
 }
@@ -143,13 +223,16 @@ export function ProductProvider({
   children: React.ReactNode;
 }) {
   const [products, setProducts] =
-    useState<Product[]>(initialProducts);
+    useState<Product[]>(
+      initialProducts
+    );
 
   const [baseCategories, setBaseCategories] =
     useState<Category[]>(() => {
-      const stored = localStorage.getItem(
-        CATEGORIES_STORAGE_KEY
-      );
+      const stored =
+        localStorage.getItem(
+          CATEGORIES_STORAGE_KEY
+        );
 
       if (!stored) {
         return defaultCategories;
@@ -168,9 +251,9 @@ export function ProductProvider({
   const [searchQuery, setSearchQuery] =
     useState('');
 
-  // =====================================================
-  // LOAD PRODUCTS
-  // =====================================================
+  // ===================================================
+  // LOAD PRODUCTS FROM FIREBASE
+  // ===================================================
 
   useEffect(() => {
     return onSnapshot(
@@ -180,13 +263,16 @@ export function ProductProvider({
           return;
         }
 
-        const firebaseProducts = snapshot.docs.map(
-          (item) =>
-            ({
-              id: item.id,
-              ...item.data(),
-            }) as Product
-        );
+        const firebaseProducts =
+          snapshot.docs.map((item) =>
+            normalizeProduct(
+              item.id,
+              item.data() as Record<
+                string,
+                unknown
+              >
+            )
+          );
 
         setProducts(firebaseProducts);
       },
@@ -199,9 +285,9 @@ export function ProductProvider({
     );
   }, []);
 
-  // =====================================================
+  // ===================================================
   // SAVE CATEGORIES
-  // =====================================================
+  // ===================================================
 
   useEffect(() => {
     localStorage.setItem(
@@ -210,9 +296,9 @@ export function ProductProvider({
     );
   }, [baseCategories]);
 
-  // =====================================================
+  // ===================================================
   // CATEGORIES
-  // =====================================================
+  // ===================================================
 
   const categories = useMemo(
     () =>
@@ -223,25 +309,32 @@ export function ProductProvider({
     [products, baseCategories]
   );
 
-  // =====================================================
+  // ===================================================
   // ADD PRODUCT
-  // =====================================================
+  // ===================================================
 
   const addProduct = useCallback(
-    async (product: Omit<Product, 'id'>) => {
+    async (
+      product: Omit<Product, 'id'>
+    ) => {
       await seedDefaultProducts();
+
+      const cleanProduct =
+        removeUndefinedFields(
+          product as Record<string, unknown>
+        );
 
       await addDoc(
         productsCollection,
-        removeUndefinedFields(product)
+        cleanProduct
       );
     },
     []
   );
 
-  // =====================================================
+  // ===================================================
   // EDIT PRODUCT
-  // =====================================================
+  // ===================================================
 
   const editProduct = useCallback(
     async (
@@ -256,9 +349,17 @@ export function ProductProvider({
 
       delete productUpdates.id;
 
+      const cleanUpdates =
+        removeUndefinedFields(
+          productUpdates as Record<
+            string,
+            unknown
+          >
+        );
+
       await setDoc(
         doc(productsCollection, id),
-        removeUndefinedFields(productUpdates),
+        cleanUpdates,
         {
           merge: true,
         }
@@ -267,9 +368,9 @@ export function ProductProvider({
     []
   );
 
-  // =====================================================
+  // ===================================================
   // DELETE PRODUCT
-  // =====================================================
+  // ===================================================
 
   const deleteProduct = useCallback(
     async (id: string) => {
@@ -282,71 +383,70 @@ export function ProductProvider({
     []
   );
 
-  // =====================================================
+  // ===================================================
   // TRACK AFFILIATE CLICK
-  // =====================================================
+  // ===================================================
 
-  const trackAffiliateClick = useCallback(
-    async (
-      product: Product,
-      platform: string
-    ) => {
-      try {
-        const affiliateUrl =
-          product.affiliateLink || '';
+  const trackAffiliateClick =
+    useCallback(
+      async (
+        product: Product,
+        platform: string
+      ) => {
+        try {
+          const affiliateUrl =
+            product.affiliateLink || '';
 
-        if (!affiliateUrl) {
-          console.warn(
-            `No affiliate link for ${product.name}`
-          );
-          return;
-        }
+          if (!affiliateUrl) {
+            console.warn(
+              `No affiliate link for ${product.name}`
+            );
 
-        const platformValue =
-          platform?.trim() || 'Unknown';
-
-        await addDoc(
-          affiliateClicksCollection,
-          {
-            productId: product.id,
-            productName: product.name,
-
-            // Dynamic marketplace/platform
-            platform: platformValue,
-
-            // Affiliate URL
-            affiliateUrl,
-
-            category:
-              product.category ||
-              'uncategorized',
-
-            timestamp: serverTimestamp(),
-
-            pageUrl:
-              typeof window !== 'undefined'
-                ? window.location.href
-                : '',
+            return;
           }
-        );
 
-        console.log(
-          `${platformValue} click tracked:`,
-          product.name
-        );
-      } catch (error) {
-        console.error(
-          `Failed to track affiliate click for ${platform}:`,
-          error
-        );
-      }
-    },
-    []
-  );
+          const platformValue =
+            platform?.trim() || 'Unknown';
 
-  // =====================================================
+          await addDoc(
+            affiliateClicksCollection,
+            {
+              productId: product.id,
+              productName: product.name,
+              platform: platformValue,
+              affiliateUrl,
+              category:
+                product.category ||
+                'uncategorized',
+
+              timestamp:
+                serverTimestamp(),
+
+              pageUrl:
+                typeof window !==
+                'undefined'
+                  ? window.location.href
+                  : '',
+            }
+          );
+
+          console.log(
+            `${platformValue} click tracked:`,
+            product.name
+          );
+        } catch (error) {
+          console.error(
+            `Failed to track affiliate click for ${platform}:`,
+            error
+          );
+        }
+      },
+      []
+    );
+
+  // ===================================================
   // ADD CATEGORY
-  // =====================================================
+  // ===================================================
 
   const addCategory = useCallback(
     (
@@ -355,109 +455,121 @@ export function ProductProvider({
         'id' | 'productCount'
       >
     ) => {
-      setBaseCategories((current) => [
-        ...current,
-        {
-          ...category,
-          id: `custom-${Date.now()}`,
-          productCount: 0,
-          isCustom: true,
-        },
-      ]);
+      setBaseCategories(
+        (current) => [
+          ...current,
+
+          {
+            ...category,
+            id: `custom-${Date.now()}`,
+            productCount: 0,
+            isCustom: true,
+          },
+        ]
+      );
     },
     []
   );
 
-  // =====================================================
+  // ===================================================
   // DELETE CATEGORY
-  // =====================================================
+  // ===================================================
 
-  const deleteCategory = useCallback(
-    (id: string) => {
-      if (
-        products.some(
-          (product) =>
-            product.category === id
-        )
-      ) {
-        alert(
-          'Cannot delete a category with existing products. Move or delete its products first.'
+  const deleteCategory =
+    useCallback(
+      (id: string) => {
+        if (
+          products.some(
+            (product) =>
+              product.category === id
+          )
+        ) {
+          alert(
+            'Cannot delete a category with existing products. Move or delete its products first.'
+          );
+
+          return;
+        }
+
+        setBaseCategories(
+          (current) =>
+            current.filter(
+              (category) =>
+                category.id !== id
+            )
         );
-        return;
-      }
+      },
+      [products]
+    );
 
-      setBaseCategories((current) =>
-        current.filter(
-          (category) =>
-            category.id !== id
-        )
-      );
-    },
-    [products]
-  );
-
-  // =====================================================
+  // ===================================================
   // CATEGORY PRODUCTS
-  // =====================================================
+  // ===================================================
 
   const getProductsByCategory =
     useCallback(
       (categoryId: string) =>
         products.filter(
           (product) =>
-            product.category === categoryId
+            product.category ===
+            categoryId
         ),
       [products]
     );
 
-  // =====================================================
+  // ===================================================
   // FEATURED PRODUCTS
-  // =====================================================
+  // ===================================================
 
   const getFeaturedProducts =
     useCallback(
       () =>
         products.filter(
-          (product) => product.badge
+          (product) =>
+            product.badge
         ),
       [products]
     );
 
-  // =====================================================
+  // ===================================================
   // SEARCH PRODUCTS
-  // =====================================================
+  // ===================================================
 
-  const searchProducts = useCallback(
-    (query: string) => {
-      if (!query.trim()) {
-        return products;
-      }
+  const searchProducts =
+    useCallback(
+      (query: string) => {
+        if (!query.trim()) {
+          return products;
+        }
 
-      const value =
-        query.toLowerCase();
+        const value =
+          query.toLowerCase();
 
-      return products.filter(
-        (product) =>
-          product.name
-            .toLowerCase()
-            .includes(value) ||
-          product.description
-            .toLowerCase()
-            .includes(value) ||
-          product.category
-            .toLowerCase()
-            .includes(value) ||
-          product.platformName
-            ?.toLowerCase()
-            .includes(value)
-      );
-    },
-    [products]
-  );
+        return products.filter(
+          (product) =>
+            product.name
+              .toLowerCase()
+              .includes(value) ||
 
-  // =====================================================
+            product.description
+              .toLowerCase()
+              .includes(value) ||
+
+            product.category
+              .toLowerCase()
+              .includes(value) ||
+
+            product.platformName
+              ?.toLowerCase()
+              .includes(value)
+        );
+      },
+      [products]
+    );
+
+  // ===================================================
   // PROVIDER
-  // =====================================================
+  // ===================================================
 
   return (
     <ProductContext.Provider
@@ -495,9 +607,8 @@ export function ProductProvider({
 // =====================================================
 
 export function useProducts() {
-  const context = useContext(
-    ProductContext
-  );
+  const context =
+    useContext(ProductContext);
 
   if (!context) {
     throw new Error(

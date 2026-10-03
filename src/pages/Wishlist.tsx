@@ -1,5 +1,4 @@
-
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Trash2,
@@ -13,10 +12,55 @@ import { useProducts } from '../context/ProductContext';
 
 const WISHLIST_STORAGE_KEY = 'luxefinds_wishlist';
 
+type WishlistItem =
+  | string
+  | number
+  | {
+      id?: string | number;
+      productId?: string | number;
+    };
+
 export default function Wishlist() {
   const { products, trackAffiliateClick } = useProducts();
 
   const [wishlistIds, setWishlistIds] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem(WISHLIST_STORAGE_KEY);
+
+      if (!stored) return [];
+
+      const parsed: unknown = JSON.parse(stored);
+
+      if (!Array.isArray(parsed)) return [];
+
+      return parsed
+        .map((item: WishlistItem) => {
+          if (
+            typeof item === 'string' ||
+            typeof item === 'number'
+          ) {
+            return String(item);
+          }
+
+          if (item && typeof item === 'object') {
+            return String(
+              item.id ?? item.productId ?? ''
+            );
+          }
+
+          return '';
+        })
+        .filter(Boolean);
+    } catch {
+      return [];
+    }
+  });
+
+  // =====================================================
+  // READ WISHLIST FROM LOCAL STORAGE
+  // =====================================================
+
+  const readWishlistFromStorage = (): string[] => {
     try {
       const stored = localStorage.getItem(
         WISHLIST_STORAGE_KEY
@@ -24,13 +68,95 @@ export default function Wishlist() {
 
       if (!stored) return [];
 
-      const parsed = JSON.parse(stored);
+      const parsed: unknown = JSON.parse(stored);
 
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
+      if (!Array.isArray(parsed)) return [];
+
+      const ids = parsed
+        .map((item: WishlistItem) => {
+          if (
+            typeof item === 'string' ||
+            typeof item === 'number'
+          ) {
+            return String(item);
+          }
+
+          if (item && typeof item === 'object') {
+            return String(
+              item.id ?? item.productId ?? ''
+            );
+          }
+
+          return '';
+        })
+        .filter(Boolean);
+
+      // Remove duplicate IDs so the count is always correct.
+      return [...new Set(ids)];
+    } catch (error) {
+      console.error(
+        'Unable to read wishlist:',
+        error
+      );
+
       return [];
     }
-  });
+  };
+
+  // =====================================================
+  // SYNC WISHLIST
+  // =====================================================
+
+  useEffect(() => {
+    const syncWishlist = () => {
+      const latestWishlist =
+        readWishlistFromStorage();
+
+      setWishlistIds(latestWishlist);
+    };
+
+    // Sync when this page opens.
+    syncWishlist();
+
+    // Sync when ProductDetails or another component
+    // updates the wishlist.
+    const handleWishlistUpdate = () => {
+      syncWishlist();
+    };
+
+    // Sync between browser tabs/windows.
+    const handleStorage = (
+      event: StorageEvent
+    ) => {
+      if (
+        event.key === WISHLIST_STORAGE_KEY
+      ) {
+        syncWishlist();
+      }
+    };
+
+    window.addEventListener(
+      'wishlistUpdated',
+      handleWishlistUpdate
+    );
+
+    window.addEventListener(
+      'storage',
+      handleStorage
+    );
+
+    return () => {
+      window.removeEventListener(
+        'wishlistUpdated',
+        handleWishlistUpdate
+      );
+
+      window.removeEventListener(
+        'storage',
+        handleStorage
+      );
+    };
+  }, []);
 
   // =====================================================
   // WISHLIST PRODUCTS
@@ -38,7 +164,7 @@ export default function Wishlist() {
 
   const wishlistProducts = useMemo(() => {
     return products.filter((product) =>
-      wishlistIds.includes(product.id)
+      wishlistIds.includes(String(product.id))
     );
   }, [products, wishlistIds]);
 
@@ -46,17 +172,33 @@ export default function Wishlist() {
   // REMOVE PRODUCT
   // =====================================================
 
-  const removeFromWishlist = (productId: string) => {
+  const removeFromWishlist = (
+    productId: string
+  ) => {
     const updated = wishlistIds.filter(
-      (id) => id !== productId
+      (id) => String(id) !== String(productId)
     );
 
+    // Update React state immediately.
     setWishlistIds(updated);
 
-    localStorage.setItem(
-      WISHLIST_STORAGE_KEY,
-      JSON.stringify(updated)
-    );
+    try {
+      localStorage.setItem(
+        WISHLIST_STORAGE_KEY,
+        JSON.stringify(updated)
+      );
+
+      // Tell the rest of the application that
+      // the wishlist changed.
+      window.dispatchEvent(
+        new Event('wishlistUpdated')
+      );
+    } catch (error) {
+      console.error(
+        'Unable to update wishlist:',
+        error
+      );
+    }
   };
 
   // =====================================================
@@ -66,16 +208,29 @@ export default function Wishlist() {
   const clearWishlist = () => {
     setWishlistIds([]);
 
-    localStorage.removeItem(
-      WISHLIST_STORAGE_KEY
-    );
+    try {
+      localStorage.removeItem(
+        WISHLIST_STORAGE_KEY
+      );
+
+      window.dispatchEvent(
+        new Event('wishlistUpdated')
+      );
+    } catch (error) {
+      console.error(
+        'Unable to clear wishlist:',
+        error
+      );
+    }
   };
 
   // =====================================================
   // AFFILIATE CLICK
   // =====================================================
 
-  const handleAffiliateClick = (product: any) => {
+  const handleAffiliateClick = (
+    product: any
+  ) => {
     const affiliateLink = String(
       product.affiliateLink || ''
     ).trim();
@@ -94,7 +249,6 @@ export default function Wishlist() {
 
   return (
     <div className="min-h-screen bg-gray-50 pt-24 pb-16">
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* =================================================
@@ -126,6 +280,10 @@ export default function Wishlist() {
                 <h1 className="text-3xl sm:text-4xl font-bold text-gray-900">
                   My Wishlist
                 </h1>
+
+                {/* =================================================
+                    FIXED WISHLIST COUNT
+                ================================================= */}
 
                 <p className="text-gray-500 mt-1">
                   {wishlistProducts.length === 0
@@ -269,11 +427,12 @@ export default function Wishlist() {
                         type="button"
                         onClick={() =>
                           removeFromWishlist(
-                            product.id
+                            String(product.id)
                           )
                         }
                         className="absolute top-3 right-3 w-10 h-10 rounded-full bg-white/95 text-red-500 flex items-center justify-center shadow-sm hover:bg-red-500 hover:text-white transition-colors z-10"
                         title="Remove from wishlist"
+                        aria-label={`Remove ${product.name} from wishlist`}
                       >
                         <span className="text-xl">
                           ♥

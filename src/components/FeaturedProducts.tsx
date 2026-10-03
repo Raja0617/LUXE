@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react';
+
+import { useRef, useState, type MouseEvent } from 'react';
 import { motion, useInView } from 'framer-motion';
 import {
   Star,
@@ -19,6 +20,9 @@ const badgeIcons = {
   Trending: Sparkles,
   'Top Rated': Star,
   Premium: Award,
+  'Top Brand': Award,
+  'Limited Deal': Sparkles,
+  'New Arrival': Star,
 };
 
 export default function FeaturedProducts() {
@@ -49,15 +53,21 @@ export default function FeaturedProducts() {
 
         {/* Section Header */}
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
+          initial={{
+            opacity: 0,
+            y: 30,
+          }}
           animate={
             isInView
-              ? { opacity: 1, y: 0 }
+              ? {
+                  opacity: 1,
+                  y: 0,
+                }
               : {}
           }
           transition={{
             duration: 0.8,
-            ease: [0.16, 1, 0.3, 1],
+            ease: [0.16, 1, 1, 1],
           }}
           className="text-center mb-10 sm:mb-16"
         >
@@ -132,37 +142,92 @@ function FeaturedProductCard({
   deleteProduct,
   trackAffiliateClick,
 }: FeaturedProductCardProps) {
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [currentImageIndex, setCurrentImageIndex] =
+    useState(0);
 
-  const BadgeIcon = product.badge
-    ? badgeIcons[
-        product.badge as keyof typeof badgeIcons
-      ]
-    : null;
+  // =====================================================
+  // PRICE HELPERS
+  // =====================================================
+
+  const getNumericPrice = (value: any): number => {
+    const numeric = Number(
+      String(value ?? '').replace(/[^\d.]/g, '')
+    );
+
+    return Number.isFinite(numeric) ? numeric : 0;
+  };
+
+  const formatINR = (value: any): string => {
+    const numeric = getNumericPrice(value);
+
+    if (numeric <= 0) {
+      return String(value ?? '');
+    }
+
+    return `₹${numeric.toLocaleString('en-IN')}`;
+  };
+
+  const originalPrice = getNumericPrice(
+    product?.originalPrice
+  );
+
+  const sellingPrice = getNumericPrice(
+    product?.price
+  );
+
+  const discountPercentage =
+    originalPrice > 0 &&
+    sellingPrice > 0 &&
+    originalPrice > sellingPrice
+      ? Math.round(
+          ((originalPrice - sellingPrice) /
+            originalPrice) *
+            100
+        )
+      : 0;
+
+  // =====================================================
+  // STOCK STATUS
+  // =====================================================
+
+  const isOutOfStock =
+    product?.stockStatus === 'Out of Stock';
+
+  // =====================================================
+  // BADGE
+  // =====================================================
+
+  const BadgeIcon =
+    product?.badge &&
+    badgeIcons[
+      product.badge as keyof typeof badgeIcons
+    ];
+
+  // =====================================================
+  // IMAGES
+  // =====================================================
 
   const images =
-    product.images &&
+    Array.isArray(product?.images) &&
     product.images.length > 0
       ? product.images
-      : product.image
+      : product?.image
       ? [product.image]
       : [];
 
-  const hasMultipleImages = images.length > 1;
+  const hasMultipleImages =
+    images.length > 1;
 
   // =====================================================
   // DYNAMIC AFFILIATE DATA
   // =====================================================
 
-  // New products use platformName.
-  // Existing products without platformName are treated
-  // as Amazon so old products continue working.
   const platformName = String(
-    product.platformName || 'Amazon'
+    product?.platformName || 'Amazon'
   ).trim();
 
   const affiliateLink = String(
-    product.affiliateLink || ''
+    product?.affiliateLink || ''
   ).trim();
 
   // =====================================================
@@ -170,11 +235,11 @@ function FeaturedProductCard({
   // =====================================================
 
   const handleAffiliateClick = () => {
-    if (!affiliateLink) {
+    if (!affiliateLink || isOutOfStock) {
       return;
     }
 
-    trackAffiliateClick(
+    void trackAffiliateClick(
       product,
       platformName
     );
@@ -184,9 +249,7 @@ function FeaturedProductCard({
   // IMAGE NAVIGATION
   // =====================================================
 
-  const nextImage = (
-    e: React.MouseEvent
-  ) => {
+  const nextImage = (e: MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -200,9 +263,7 @@ function FeaturedProductCard({
     );
   };
 
-  const prevImage = (
-    e: React.MouseEvent
-  ) => {
+  const prevImage = (e: MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -234,7 +295,7 @@ function FeaturedProductCard({
       transition={{
         duration: 0.6,
         delay: index * 0.1,
-        ease: [0.16, 1, 0.3, 1],
+        ease: [0.16, 1, 1, 1],
       }}
       className="group bg-white rounded-xl sm:rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500 product-card"
     >
@@ -249,13 +310,29 @@ function FeaturedProductCard({
         {images.length > 0 ? (
           <img
             src={images[currentImageIndex]}
-            alt={product.name}
-            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+            alt={product?.name || 'Product'}
+            className={`w-full h-full object-cover transition-all duration-700 ${
+              isOutOfStock
+                ? 'grayscale opacity-60'
+                : 'group-hover:scale-110'
+            }`}
             loading="lazy"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gray-100">
             <Package className="w-10 h-10 text-gray-400" />
+          </div>
+        )}
+
+        {/* =================================================
+            OUT OF STOCK OVERLAY
+        ================================================= */}
+
+        {isOutOfStock && (
+          <div className="absolute inset-0 bg-black/25 flex items-center justify-center z-10">
+            <div className="px-4 py-2 bg-black/75 text-white rounded-full text-xs sm:text-sm font-bold">
+              OUT OF STOCK
+            </div>
           </div>
         )}
 
@@ -268,7 +345,7 @@ function FeaturedProductCard({
             <button
               type="button"
               onClick={prevImage}
-              className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white z-10"
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white z-20"
             >
               <ChevronLeft className="w-4 h-4 text-gray-700" />
             </button>
@@ -276,13 +353,13 @@ function FeaturedProductCard({
             <button
               type="button"
               onClick={nextImage}
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white z-10"
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white z-20"
             >
               <ChevronRight className="w-4 h-4 text-gray-700" />
             </button>
 
             {/* Image Indicators */}
-            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1 z-10">
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1 z-20">
               {images.map(
                 (_: string, idx: number) => (
                   <button
@@ -292,9 +369,7 @@ function FeaturedProductCard({
                       e.preventDefault();
                       e.stopPropagation();
 
-                      setCurrentImageIndex(
-                        idx
-                      );
+                      setCurrentImageIndex(idx);
                     }}
                     className={`w-1.5 h-1.5 rounded-full transition-colors ${
                       idx === currentImageIndex
@@ -312,16 +387,25 @@ function FeaturedProductCard({
             BADGE
         ================================================= */}
 
-        {product.badge &&
-          BadgeIcon && (
-            <div className="absolute top-3 sm:top-4 left-3 sm:left-4 flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-white rounded-full text-xs font-semibold z-10 shadow-md">
-              <BadgeIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+        {product?.badge && BadgeIcon && (
+          <div className="absolute top-3 sm:top-4 left-3 sm:left-4 flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-white rounded-full text-xs font-semibold z-20 shadow-md">
+            <BadgeIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
 
-              <span className="hidden sm:inline">
-                {product.badge}
-              </span>
-            </div>
-          )}
+            <span className="hidden sm:inline">
+              {product.badge}
+            </span>
+          </div>
+        )}
+
+        {/* =================================================
+            DISCOUNT BADGE
+        ================================================= */}
+
+        {discountPercentage > 0 && (
+          <div className="absolute top-3 sm:top-4 right-3 sm:right-4 px-2 sm:px-2.5 py-1 sm:py-1.5 bg-red-500 text-white rounded-full text-[10px] sm:text-xs font-bold z-20 shadow-md">
+            {discountPercentage}% OFF
+          </div>
+        )}
 
         {/* =================================================
             ADMIN DELETE BUTTON
@@ -333,7 +417,7 @@ function FeaturedProductCard({
             onClick={() =>
               deleteProduct(product.id)
             }
-            className="absolute top-3 sm:top-4 right-3 sm:right-4 w-7 h-7 sm:w-8 sm:h-8 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 z-20"
+            className="absolute top-12 sm:top-14 right-3 sm:right-4 w-7 h-7 sm:w-8 sm:h-8 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 z-30"
             title="Delete product"
           >
             <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -344,9 +428,8 @@ function FeaturedProductCard({
             QUICK ACTION
         ================================================= */}
 
-        {affiliateLink && (
+        {affiliateLink && !isOutOfStock && (
           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-
             <motion.a
               href={affiliateLink}
               target="_blank"
@@ -364,7 +447,6 @@ function FeaturedProductCard({
 
               <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </motion.a>
-
           </div>
         )}
       </div>
@@ -377,76 +459,112 @@ function FeaturedProductCard({
 
         {/* Rating */}
         <div className="flex items-center gap-1 mb-1.5 sm:mb-2">
-
           <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-yellow-400 text-yellow-400" />
 
           <span className="text-xs sm:text-sm font-medium text-gray-900">
-            {product.rating || '4.5'}
+            {product?.rating || '4.5'}
           </span>
 
           <span className="text-xs text-gray-500 hidden sm:inline">
             (
             {Number(
-              product.reviews || 0
+              product?.reviews || 0
             ).toLocaleString()}
             )
           </span>
-
         </div>
 
         {/* Product Name */}
         <h3 className="font-semibold text-gray-900 mb-0.5 sm:mb-1 line-clamp-1 group-hover:text-[#b8860b] transition-colors text-sm sm:text-base">
-          {product.name}
+          {product?.name || 'Unnamed Product'}
         </h3>
 
         {/* Description */}
         <p className="text-xs sm:text-sm text-gray-500 mb-2 sm:mb-3 line-clamp-2">
-          {product.description}
+          {product?.description || 'No description available.'}
         </p>
 
         {/* =================================================
             SIZES
         ================================================= */}
 
-        {product.sizes &&
+        {Array.isArray(product?.sizes) &&
           product.sizes.length > 0 && (
             <div className="flex flex-wrap gap-1 mb-2">
-
               {product.sizes
                 .slice(0, 3)
-                .map(
-                  (size: string) => (
-                    <span
-                      key={size}
-                      className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px] sm:text-xs"
-                    >
-                      {size}
-                    </span>
-                  )
-                )}
+                .map((size: string) => (
+                  <span
+                    key={size}
+                    className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px] sm:text-xs"
+                  >
+                    {size}
+                  </span>
+                ))}
 
               {product.sizes.length > 3 && (
                 <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px] sm:text-xs">
                   +
-                  {product.sizes.length -
-                    3}
+                  {product.sizes.length - 3}
                 </span>
               )}
-
             </div>
           )}
+
+        {/* =================================================
+            STOCK STATUS
+        ================================================= */}
+
+        {isOutOfStock ? (
+          <div className="text-xs sm:text-sm font-semibold text-gray-500 mb-2">
+            Out of Stock
+          </div>
+        ) : (
+          <div className="text-xs sm:text-sm font-semibold text-green-600 mb-2">
+            In Stock
+          </div>
+        )}
 
         {/* =================================================
             PRICE + PLATFORM BUTTON
         ================================================= */}
 
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-end justify-between gap-3">
 
-          <span className="text-base sm:text-xl font-bold text-gray-900">
-            {product.price}
-          </span>
+          {/* =================================================
+              PRICE
+          ================================================= */}
 
-          {affiliateLink && (
+          <div className="min-w-0 flex-1">
+
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+
+              {/* DISCOUNTED / SELLING PRICE */}
+              <span className="text-base sm:text-xl font-bold text-gray-900">
+                {formatINR(product?.price)}
+              </span>
+
+              {/* ORIGINAL PRICE */}
+              {originalPrice > sellingPrice &&
+                originalPrice > 0 && (
+                  <span className="text-xs sm:text-sm text-gray-400 line-through">
+                    {formatINR(product?.originalPrice)}
+                  </span>
+                )}
+
+              {/* DISCOUNT */}
+              {discountPercentage > 0 && (
+                <span className="text-[10px] sm:text-xs font-bold text-red-500 whitespace-nowrap">
+                  {discountPercentage}% OFF
+                </span>
+              )}
+
+            </div>
+
+          </div>
+
+          {/* Platform Button */}
+          {affiliateLink && !isOutOfStock && (
             <motion.a
               href={affiliateLink}
               target="_blank"

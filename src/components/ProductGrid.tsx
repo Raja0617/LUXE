@@ -1,6 +1,11 @@
-
 import { useRef, useState, type MouseEvent } from 'react';
-import { motion, useInView, AnimatePresence } from 'framer-motion';
+
+import {
+  motion,
+  useInView,
+  AnimatePresence,
+} from 'framer-motion';
+
 import {
   Star,
   ExternalLink,
@@ -11,17 +16,35 @@ import {
   ChevronRight,
   Trash2,
 } from 'lucide-react';
+
 import { useNavigate } from 'react-router-dom';
 
 import { useProducts } from '../context/ProductContext';
 import { useAdmin } from '../context/AdminContext';
 
 // =====================================================
+// PRICE HELPER
+// =====================================================
+
+function getNumericPrice(price: unknown): number {
+  if (!price) return 0;
+
+  const cleaned = String(price)
+    .replace(/,/g, '')
+    .replace(/[^\d.]/g, '');
+
+  const value = parseFloat(cleaned);
+
+  return Number.isFinite(value) ? value : 0;
+}
+
+// =====================================================
 // PRODUCT GRID
 // =====================================================
 
 export default function ProductGrid() {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef =
+    useRef<HTMLDivElement>(null);
 
   const isInView = useInView(containerRef, {
     once: true,
@@ -40,7 +63,8 @@ export default function ProductGrid() {
 
   const { isAdmin } = useAdmin();
 
-  const [showFilter, setShowFilter] = useState(false);
+  const [showFilter, setShowFilter] =
+    useState(false);
 
   const filteredProducts =
     activeCategory === 'all'
@@ -60,7 +84,10 @@ export default function ProductGrid() {
         ===================================================== */}
 
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
+          initial={{
+            opacity: 0,
+            y: 30,
+          }}
           animate={
             isInView
               ? {
@@ -91,7 +118,8 @@ export default function ProductGrid() {
               {activeCategory === 'all'
                 ? 'All Products'
                 : categories.find(
-                    (c) => c.id === activeCategory
+                    (c) =>
+                      c.id === activeCategory
                   )?.name}
             </motion.span>
 
@@ -100,7 +128,8 @@ export default function ProductGrid() {
                 ? 'Curated Collection'
                 : 'Shop ' +
                   (categories.find(
-                    (c) => c.id === activeCategory
+                    (c) =>
+                      c.id === activeCategory
                   )?.name || '')}
             </h2>
           </div>
@@ -289,7 +318,7 @@ export default function ProductGrid() {
 }
 
 // =====================================================
-// PRODUCT CARD
+// PRODUCT CARD PROPS
 // =====================================================
 
 interface ProductCardProps {
@@ -387,7 +416,6 @@ function ProductCard({
   const hasMultipleImages =
     images.length > 1;
 
-  // Prevent an invalid image index
   const safeImageIndex =
     currentImageIndex < images.length
       ? currentImageIndex
@@ -406,6 +434,29 @@ function ProductCard({
     String(
       product?.affiliateLink || ''
     ).trim();
+
+  // =====================================================
+  // PRICE CALCULATION
+  // =====================================================
+
+  const sellingPrice = getNumericPrice(
+    product?.price
+  );
+
+  const originalPrice = getNumericPrice(
+    product?.originalPrice
+  );
+
+  const discountPercentage =
+    originalPrice > 0 &&
+    sellingPrice > 0 &&
+    originalPrice > sellingPrice
+      ? Math.round(
+          ((originalPrice - sellingPrice) /
+            originalPrice) *
+            100
+        )
+      : 0;
 
   // =====================================================
   // OPEN PRODUCT DETAILS
@@ -490,16 +541,22 @@ function ProductCard({
   const handleAffiliateClick = (
     e: MouseEvent
   ) => {
+    e.preventDefault();
     e.stopPropagation();
 
     if (!affiliateLink) {
-      e.preventDefault();
       return;
     }
 
     void trackAffiliateClick(
       product,
       platformName
+    );
+
+    window.open(
+      affiliateLink,
+      '_blank',
+      'noopener,noreferrer'
     );
   };
 
@@ -540,9 +597,20 @@ function ProductCard({
         delay: index * 0.05,
         ease: [0.16, 1, 0.3, 1],
       }}
-      onClick={() =>
-        openProductDetails()
-      }
+      onClick={(e) => {
+        const target =
+          e.target as HTMLElement;
+
+        if (
+          target.closest(
+            'a, button'
+          )
+        ) {
+          return;
+        }
+
+        openProductDetails(e);
+      }}
       className="group bg-white rounded-xl sm:rounded-2xl overflow-hidden border border-gray-100 hover:border-gray-200 hover:shadow-xl transition-all duration-500 cursor-pointer"
     >
       {/* =====================================================
@@ -553,7 +621,9 @@ function ProductCard({
         {images.length > 0 ? (
           <img
             src={images[safeImageIndex]}
-            alt={product?.name || 'Product'}
+            alt={
+              product?.name || 'Product'
+            }
             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
             loading="lazy"
             onError={(e) => {
@@ -594,27 +664,29 @@ function ProductCard({
             {/* DOTS */}
 
             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1 z-10">
-              {images.map((_, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={(e) =>
-                    selectImage(
-                      e,
-                      idx
-                    )
-                  }
-                  aria-label={`View image ${
-                    idx + 1
-                  }`}
-                  className={`w-1.5 h-1.5 rounded-full transition-colors ${
-                    idx ===
-                    safeImageIndex
-                      ? 'bg-white'
-                      : 'bg-white/50'
-                  }`}
-                />
-              ))}
+              {images.map(
+                (_, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={(e) =>
+                      selectImage(
+                        e,
+                        idx
+                      )
+                    }
+                    aria-label={`View image ${
+                      idx + 1
+                    }`}
+                    className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                      idx ===
+                      safeImageIndex
+                        ? 'bg-white'
+                        : 'bg-white/50'
+                    }`}
+                  />
+                )
+              )}
             </div>
           </>
         )}
@@ -627,7 +699,8 @@ function ProductCard({
           <span className="px-2 py-0.5 sm:px-2.5 sm:py-1 bg-white/90 backdrop-blur-sm rounded-full text-[10px] sm:text-xs font-medium text-gray-700">
             {categories.find(
               (c) =>
-                c.id === product?.category
+                c.id ===
+                product?.category
             )?.name ||
               product?.category ||
               'Product'}
@@ -666,7 +739,7 @@ function ProductCard({
         =================================================== */}
 
         {affiliateLink && (
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+          <div className="hidden sm:block absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
             <div className="absolute bottom-3 sm:bottom-4 left-3 sm:left-4 right-3 sm:right-4">
               <motion.a
                 href={affiliateLink}
@@ -705,7 +778,8 @@ function ProductCard({
             <Star className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-yellow-400 text-yellow-400" />
 
             <span className="text-xs sm:text-sm font-medium text-gray-900">
-              {product?.rating || '4.5'}
+              {product?.rating ||
+                '4.5'}
             </span>
           </div>
 
@@ -777,10 +851,41 @@ function ProductCard({
             PRICE + PLATFORM
         ===================================================== */}
 
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-base sm:text-lg font-bold text-gray-900">
-            {product?.price || 'Price unavailable'}
-          </span>
+        <div className="mt-2 sm:mt-0">
+
+          {/* PRICE */}
+
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+
+              {/* DISCOUNTED PRICE */}
+
+              <span className="text-base sm:text-lg font-bold text-gray-900">
+                {product?.price ||
+                  'Price unavailable'}
+              </span>
+
+              {/* ORIGINAL PRICE */}
+
+              {originalPrice >
+                sellingPrice &&
+                originalPrice > 0 && (
+                  <span className="text-xs sm:text-sm text-gray-400 line-through">
+                    {product?.originalPrice}
+                  </span>
+                )}
+
+              {/* DISCOUNT */}
+
+              {discountPercentage > 0 && (
+                <span className="text-[10px] sm:text-xs font-bold text-red-500 whitespace-nowrap">
+                  {discountPercentage}% OFF
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* AFFILIATE BUTTON */}
 
           {affiliateLink && (
             <motion.a
@@ -796,11 +901,11 @@ function ProductCard({
               whileTap={{
                 scale: 0.98,
               }}
-              className="flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gradient-to-r hover:from-[#d4af37] hover:to-[#b8860b] hover:text-white rounded-full text-[10px] sm:text-xs font-semibold transition-all"
+              className="mt-2 sm:mt-3 flex w-full sm:w-auto items-center justify-center gap-1 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-gray-100 text-gray-700 hover:bg-gradient-to-r hover:from-[#d4af37] hover:to-[#b8860b] hover:text-white rounded-full text-[9px] sm:text-[11px] font-semibold transition-all whitespace-nowrap"
             >
               View on {platformName}
 
-              <ExternalLink className="w-3.5 h-3.5" />
+              <ExternalLink className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
             </motion.a>
           )}
         </div>
@@ -808,4 +913,3 @@ function ProductCard({
     </motion.div>
   );
 }
-
